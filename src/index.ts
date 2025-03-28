@@ -2,7 +2,6 @@ import { buildFancyDropdown, buildPresetSelect, BuildPromptOptions, DropdownItem
 import {
   selected_group,
   st_echo, // Use st_echo for user feedback
-  st_getCharaFilename, // Useful for identifying current context
   this_chid,
   world_names,
 } from 'sillytavern-utils-lib/config';
@@ -311,6 +310,7 @@ async function handlePopupUI() {
           initialList: characterItems, // Use the prepared list
           initialValues: activeSession.selectedCharacterIndexes, // Use stored IDs
           placeholderText: 'Select characters for context...',
+          enableSearch: characterItems.length > 10,
           onSelectChange: (_previousValues: string[], newValues: string[]) => {
             activeSession.selectedCharacterIndexes = newValues;
             saveSession();
@@ -327,6 +327,7 @@ async function handlePopupUI() {
             initialList: allWorldNames, // List of names
             initialValues: activeSession.selectedWorldNames, // Use stored names
             placeholderText: 'Select lorebooks for context...',
+            enableSearch: allWorldNames.length > 10,
             onSelectChange: (_previousValues: string[], newValues: string[]) => {
               activeSession.selectedWorldNames = newValues;
               saveSession();
