@@ -122,6 +122,7 @@ async function handlePopupUI() {
   // Example: Add to chat input area
   $('.form_create_bottom_buttons_block').prepend(iconHtml);
   $('#GroupFavDelOkBack').prepend(iconHtml); // Add to group management too if needed
+  $('#form_character_search_form').prepend(iconHtml);
 
   const popupIcons = document.querySelectorAll('.charCreator-icon');
   // setPopupIcon(popupIcons[0]); // If using commands.js helper
@@ -561,9 +562,6 @@ async function handlePopupUI() {
 function stagingCheck(): boolean {
   // Add checks for any absolutely essential ST staging functions if needed
   if (!globalContext.ConnectionManagerRequestService) return false;
-  if (!globalContext.renderExtensionTemplateAsync) return false;
-  if (!globalContext.callGenericPopup) return false;
-  // buildFancyDropdown and buildPresetSelect are assumed available via sillytavern-utils-lib
   return true;
 }
 
