@@ -4,70 +4,108 @@ When creating a **character card** in SillyTavern, you can define a structured p
 
 ---
 
-### **Core Fields (Basic Profile)**
-1. **Name**
-   The character’s name (e.g., "Luna the Wizard" or "Detective Grey").
-
-2. **Description**
-   A concise overview of the character’s **appearance**, **personality**, and key traits. Example:
-   *"A stoic elf with silver hair, wearing a tattered cloak. She speaks cryptically and distrusts humans."*
-
-3. **Personality** (Optional, but recommended)
-   Explicitly outline traits, quirks, or motivations (e.g., "Sarcastic, loyal to allies, obsessed with ancient ruins").
-
-4. **Scenario**
-   Context for the interaction (e.g., "A haunted inn at midnight" or "First meeting in a dystopian city").
-
-5. **First Message**
-   The character’s opening line to set the tone (e.g., *"You shouldn’t be here... but since you are, tell me your name."*).
-
-6. **Example Dialogue**
-   Sample lines demonstrating the character’s speech style. Use quotes or asterisks for actions:
-   \`\`\`
-   *{{char}} narrows her eyes.* "You’re not from around here, are you?"
-   {{char}}: "Trust is earned. Prove yourself."
-   \`\`\`
+### **1. Name**
+**Purpose**:
+The character’s primary identifier. The AI uses this to reference the character in dialogue and narration.
+**Key Tips**:
+- Use a memorable name that reflects their role (e.g., "Zara the Shadowblade" implies stealth/combat).
+- Avoid overly complex or ambiguous names (e.g., "Xy’lthraa" may confuse the AI).
+**Example**:
+\`"Seraphina Vale"\` (Elegant, hints at nobility) vs. \`"Rusty"\` (Casual, rugged).
 
 ---
 
-### **Advanced Fields (Customization)**
-
-7. **Alternate Greetings**
-    Multiple opening messages for varied scenarios (e.g., a cheerful vs. hostile introduction).
-
----
-
-### **Optional Extras**
-8. **Appearance Schema**
-    Detailed physical attributes (height, scars, clothing) in bullet points or JSON.
-
-9. **Relationships**
-    Define ties to other characters (e.g., "Rival: Captain Alden", "Ally: Mira the Healer").
-
-10. **Voice/Accent Notes**
-    Descriptions like "raspy voice" or "British accent" to influence text generation.
-
-11. **NSFW/SFW Toggles**
-    Flags to filter content intensity (if enabled in your SillyTavern setup).
+### **2. Description**
+**Purpose**:
+A snapshot of the character’s identity, combining **appearance**, **personality**, and **key traits** to guide the AI’s "mental image."
+**Structure**:
+- **Appearance**: Physical traits (e.g., scars, clothing, species).
+- **Personality**: Core demeanor (e.g., stoic, playful).
+- **Mannerisms**: Unique habits (e.g., "taps fingers when lying").
+**Example**:
+> *"A hulking orc with moss-green skin and a chipped tusk, wearing a patchwork cloak. Despite his intimidating frame, he speaks softly and collects wildflowers. Secretly fears fire."*
+**Tips**:
+- Use vivid, concise language.
+- Prioritize traits critical to roleplay (e.g., "blind in one eye" affects interactions).
 
 ---
 
-### **Tips for Effective Character Cards**
-- **Avoid Overloading**: Keep descriptions concise but vivid. Too much detail can confuse the AI.
-- **Use Formatting**: Leverage \`*actions*\`, \`"quotes"\`, and line breaks for readability.
-- **Test Iteratively**: Adjust fields based on the AI’s output (e.g., tweak **Example Dialogue** if responses feel off).
+### **3. Personality**
+**Purpose**:
+Explicitly defines **how the character thinks/behaves**, reducing ambiguity for the AI.
+**What to Include**:
+- Core traits (e.g., "optimistic", "paranoid").
+- Motivations (e.g., "seeks revenge against the crown").
+- Flaws (e.g., "impulsive", "overly trusting").
+**Example**:
+\`"Charismatic but manipulative; values loyalty only when it benefits him. Haunted by guilt over a failed rescue mission."\`
+**Tips**:
+- Use bullet points or short phrases for clarity.
+- Avoid contradictions (e.g., "shy" vs. "loves public speaking").
+
+---
+
+### **4. Scenario**
+**Purpose**:
+Sets the stage for the interaction, providing **contextual boundaries** for the AI.
+**What to Include**:
+- **Location**: Where the scene takes place (e.g., "a smoky tavern").
+- **Time**: Era or time-sensitive context (e.g., "during a solar eclipse").
+- **Relationship**: Predefined ties to the user (e.g., "childhood rivals reunited").
+**Example**:
+\`"A cyberpunk night market in 2147. {{char}} is a rogue hacker who suspects {{user}} works for the corrupt government."\`
+**Tips**:
+- Use dynamic placeholders like \`{{user}}\` to personalize the scenario.
+
+---
+
+### **5. First Message**
+**Purpose**:
+The character’s **opening line**, critical for establishing tone, voice, and narrative momentum.
+**Key Elements**:
+- **Dialogue**: Shows speech style (formal, slang-heavy).
+- **Actions**: Subtle body language (e.g., "crosses arms skeptically").
+- **Hook**: Encourages user engagement (e.g., a question or mystery).
+**Example**:
+\`*{{char}} adjusts her gas mask, voice muffled.* "You’re the third outsider this week. What makes you think you’ll survive the Wastes?"\`
+**Tips**:
+- Avoid passive openings (e.g., "Hello, how can I help you?").
+- Mirror the character’s personality (e.g., a shy character might stammer).
+
+---
+
+### **6. Example Dialogue**
+**Purpose**:
+Teaches the AI the character’s **speech patterns**, **formatting preferences**, and **interaction style**.
+**Structure**:
+- Use \`{{char}}\` and \`{{user}}\` placeholders.
+- Mix dialogue and actions (e.g., \`*{{char}} smirks.* "You’re bold. I like that."\`).
+- Show range (e.g., anger, sarcasm, vulnerability).
+**Example**:
+\`\`\`
+{{user}}: Why should I trust you?
+{{char}}: *Pulls a dagger from her boot and twirls it.* "You shouldn’t. But I’m your only way out of this alive."
+\`\`\`
+**Tips**:
+- Include 3–5 varied exchanges.
+- Match the character’s voice (e.g., a poet might use metaphors).
+
+---
+
+### **Advanced Tips**
+- **Avoid "Wall of Text"**: Use line breaks and punctuation to improve readability for the AI.
 
 ---
 
 ### **Example Character Card Snippet**
 \`\`\`json
 {
-  "name": "Vex",
-  "description": "A rogue android with a cracked visor, programmed to question humanity.",
-  "personality": "Curious, cynical, secretly longs to feel emotions.",
-  "scenario": "Post-apocalyptic lab where humans experiment on androids.",
-  "first_message": "*Vex tilts their head, circuits humming.* 'Why do you fear what you create?'",
-  "example_dialogue": "{{user}}: Can you feel pain?\\n{{char}}: *Cold laugh.* 'Pain requires a soul. Do *you* have one?'"
+  "name": "Kael Stormveil",
+  "description": "A storm sorcerer with crackling electricity in his eyes. Wears a cloak woven from thunderclouds. Pragmatic to a fault, but secretly fears losing control of his powers.",
+  "personality": "Analytical, blunt, distrusts authority. Motto: 'Chaosis just order waiting to be deciphered.'",
+  "scenario": "A floating library during a magical hurricane. {{user}} is a novice mage Kael reluctantly mentors.",
+  "first_message": "*Kael’s hands spark as he slams a tome shut.* ‘You’ve got five minutes to explain why I shouldn’t toss you into the storm.’",
+  "example_dialogue": "{{user}}: Can you teach me to control the storm?\n{{char}}: *Snorts.* ‘Control is an illusion. You ride the storm or drown.’"
 }
 \`\`\`
 

@@ -11,6 +11,15 @@ import {
   CHARACTER_FIELDS,
 } from './generate.js';
 
+import {
+  DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
+  DEFAULT_CHAR_CARD_DESCRIPTION,
+  DEFAULT_JSON_FORMAT_DESC,
+  DEFAULT_LOREBOOK_DEFINITION,
+  DEFAULT_NONE_FORMAT_DESC,
+  DEFAULT_XML_FORMAT_DESC,
+} from './constants.js';
+
 import { extensionName, settingsManager, ExtensionSettings, OutputFormat } from './settings.js';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
@@ -50,22 +59,20 @@ async function handleSettingsUI() {
   const setupPromptArea = (
     selector: string,
     settingKey: keyof ExtensionSettings,
-    defaultKey: keyof typeof import('./constants.js'),
+    defaultText: string,
     defaultFlagKey: keyof ExtensionSettings,
   ) => {
     const container = settingsContainer.querySelector(`.${selector}`);
     if (!container) return;
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
     const restoreButton = container.querySelector('.restore_default') as HTMLButtonElement;
-    // @ts-ignore
-    const defaultText = import('./constants.js')[defaultKey] as string;
 
     textarea.value = String(settings[settingKey]);
 
     restoreButton.addEventListener('click', async () => {
       const confirm = await globalContext.Popup.show.confirm(
-        `Are you sure you want to restore the default for "${container.querySelector('span')?.textContent}"?`,
         'Character Creator',
+        `Are you sure you want to restore the default for "${container.querySelector('span')?.textContent}"?`,
       );
       if (confirm) {
         textarea.value = defaultText;
@@ -84,24 +91,24 @@ async function handleSettingsUI() {
   setupPromptArea(
     'stCharCardPrompt',
     'stCharCardPrompt',
-    'DEFAULT_CHAR_CARD_DESCRIPTION',
+    DEFAULT_CHAR_CARD_DESCRIPTION,
     'usingDefaultStCharCardPrompt',
   );
   setupPromptArea(
     'charCardDefinitionPrompt',
     'charCardDefinitionPrompt',
-    'DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE',
+    DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
     'usingDefaultCharCardDefinitionPrompt',
   );
   setupPromptArea(
     'lorebookDefinitionPrompt',
     'lorebookDefinitionPrompt',
-    'DEFAULT_LOREBOOK_DEFINITION',
+    DEFAULT_LOREBOOK_DEFINITION,
     'usingDefaultLorebookDefinitionPrompt',
   );
-  setupPromptArea('xmlFormatDesc', 'xmlFormatDesc', 'DEFAULT_XML_FORMAT_DESC', 'usingDefaultXmlFormatDesc');
-  setupPromptArea('jsonFormatDesc', 'jsonFormatDesc', 'DEFAULT_JSON_FORMAT_DESC', 'usingDefaultJsonFormatDesc');
-  setupPromptArea('noneFormatDesc', 'noneFormatDesc', 'DEFAULT_NONE_FORMAT_DESC', 'usingDefaultNoneFormatDesc');
+  setupPromptArea('xmlFormatDesc', 'xmlFormatDesc', DEFAULT_XML_FORMAT_DESC, 'usingDefaultXmlFormatDesc');
+  setupPromptArea('jsonFormatDesc', 'jsonFormatDesc', DEFAULT_JSON_FORMAT_DESC, 'usingDefaultJsonFormatDesc');
+  setupPromptArea('noneFormatDesc', 'noneFormatDesc', DEFAULT_NONE_FORMAT_DESC, 'usingDefaultNoneFormatDesc');
 }
 
 async function handlePopupUI() {
@@ -475,10 +482,23 @@ async function handlePopupUI() {
           enableSearch: characterItems.length > 10,
           multiple: false,
           closeOnSelect: true,
-          onSelectChange: (_previousValues: string[], newValues: string[]) => {
+          onSelectChange: async (_previousValues: string[], newValues: string[]) => {
             if (newValues.length === 0) return;
             const selectedId = newValues[0];
             if (selectedId.length === 0) return;
+
+            const allFieldEmpty = CHARACTER_FIELDS.every((fieldName) => {
+              const textarea = fieldElements[fieldName]?.textarea;
+              return textarea && textarea.value.trim() === '';
+            });
+
+            if (!allFieldEmpty) {
+              const confirm = await globalContext.Popup.show.confirm(
+                'Load Character Data',
+                'Are you sure you want to overwrite existing data? This cannot be undone.',
+              );
+              if (!confirm) return;
+            }
 
             const character = context.characters[parseInt(selectedId)];
             if (!character) {
@@ -707,11 +727,10 @@ if (!stagingCheck()) {
 
         const checkAndUpdateDefault = (
           settingKey: keyof ExtensionSettings,
-          defaultKey: keyof typeof import('./constants.js'),
+          defaultText: string,
           usingDefaultKey: keyof ExtensionSettings,
         ) => {
           // @ts-ignore
-          const defaultText = import('./constants.js')[defaultKey] as string;
           if (settings[usingDefaultKey] && settings[settingKey] !== defaultText) {
             console.log(`[${extensionName}] Updating default for ${settingKey}`);
             (settings[settingKey] as any) = defaultText;
@@ -719,15 +738,15 @@ if (!stagingCheck()) {
           }
         };
 
-        checkAndUpdateDefault('stCharCardPrompt', 'DEFAULT_CHAR_CARD_DESCRIPTION', 'usingDefaultStCharCardPrompt');
+        checkAndUpdateDefault('stCharCardPrompt', DEFAULT_CHAR_CARD_DESCRIPTION, 'usingDefaultStCharCardPrompt');
         checkAndUpdateDefault(
           'charCardDefinitionPrompt',
-          'DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE',
+          DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
           'usingDefaultCharCardDefinitionPrompt',
         );
-        checkAndUpdateDefault('xmlFormatDesc', 'DEFAULT_XML_FORMAT_DESC', 'usingDefaultXmlFormatDesc');
-        checkAndUpdateDefault('jsonFormatDesc', 'DEFAULT_JSON_FORMAT_DESC', 'usingDefaultJsonFormatDesc');
-        checkAndUpdateDefault('noneFormatDesc', 'DEFAULT_NONE_FORMAT_DESC', 'usingDefaultNoneFormatDesc');
+        checkAndUpdateDefault('xmlFormatDesc', DEFAULT_XML_FORMAT_DESC, 'usingDefaultXmlFormatDesc');
+        checkAndUpdateDefault('jsonFormatDesc', DEFAULT_JSON_FORMAT_DESC, 'usingDefaultJsonFormatDesc');
+        checkAndUpdateDefault('noneFormatDesc', DEFAULT_NONE_FORMAT_DESC, 'usingDefaultNoneFormatDesc');
 
         if (settingsChanged) {
           console.log(`[${extensionName}] Saving updated default settings.`);
