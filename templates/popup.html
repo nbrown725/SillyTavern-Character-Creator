@@ -185,159 +185,24 @@
             <div class="card">
                 <h3>Character Fields</h3>
 
-                <!-- Name Field -->
-                <div class="character-field">
-                    <label for="charCreator_field_name">Name</label>
-                    <div class="field-container">
-                        <textarea id="charCreator_field_name" class="text_pole textarea_compact" rows="1"></textarea>
-                        <button class="menu_button generate-field-button" data-field="name" title="Generate Name">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        </button>
+                <!-- Character Field Template -->
+                <template id="charCreator_fieldTemplate">
+                    <div class="character-field">
+                        <label></label>
+                        <div class="field-container">
+                            <textarea class="text_pole textarea_compact"></textarea>
+                            <button class="menu_button generate-field-button">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </button>
+                        </div>
+                        <div class="field-prompt-container">
+                            <textarea class="text_pole textarea_compact field-prompt" rows="2"></textarea>
+                        </div>
                     </div>
-                    <div class="field-prompt-container">
-                        <textarea
-                            id="charCreator_prompt_name"
-                            class="text_pole textarea_compact field-prompt"
-                            rows="2"
-                            placeholder="Enter custom prompt for name generation..."
-                        ></textarea>
-                    </div>
-                </div>
+                </template>
 
-                <!-- Description Field -->
-                <div class="character-field">
-                    <label for="charCreator_field_description">Description</label>
-                    <div class="field-container large-field">
-                        <textarea
-                            id="charCreator_field_description"
-                            class="text_pole textarea_compact"
-                            rows="5"
-                        ></textarea>
-                        <button
-                            class="menu_button generate-field-button"
-                            data-field="description"
-                            title="Generate Description"
-                        >
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        </button>
-                    </div>
-                    <div class="field-prompt-container">
-                        <textarea
-                            id="charCreator_prompt_description"
-                            class="text_pole textarea_compact field-prompt"
-                            rows="2"
-                            placeholder="Enter custom prompt for description generation..."
-                        ></textarea>
-                    </div>
-                </div>
-
-                <!-- Personality Field -->
-                <div class="character-field">
-                    <label for="charCreator_field_personality">Personality</label>
-                    <div class="field-container large-field">
-                        <textarea
-                            id="charCreator_field_personality"
-                            class="text_pole textarea_compact"
-                            rows="4"
-                        ></textarea>
-                        <button
-                            class="menu_button generate-field-button"
-                            data-field="personality"
-                            title="Generate Personality"
-                        >
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        </button>
-                    </div>
-                    <div class="field-prompt-container">
-                        <textarea
-                            id="charCreator_prompt_personality"
-                            class="text_pole textarea_compact field-prompt"
-                            rows="2"
-                            placeholder="Enter custom prompt for personality generation..."
-                        ></textarea>
-                    </div>
-                </div>
-
-                <!-- Scenario Field -->
-                <div class="character-field">
-                    <label for="charCreator_field_scenario">Scenario</label>
-                    <div class="field-container large-field">
-                        <textarea
-                            id="charCreator_field_scenario"
-                            class="text_pole textarea_compact"
-                            rows="3"
-                        ></textarea>
-                        <button
-                            class="menu_button generate-field-button"
-                            data-field="scenario"
-                            title="Generate Scenario"
-                        >
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        </button>
-                    </div>
-                    <div class="field-prompt-container">
-                        <textarea
-                            id="charCreator_prompt_scenario"
-                            class="text_pole textarea_compact field-prompt"
-                            rows="2"
-                            placeholder="Enter custom prompt for scenario generation..."
-                        ></textarea>
-                    </div>
-                </div>
-
-                <!-- First Message Field -->
-                <div class="character-field">
-                    <label for="charCreator_field_first_mes">First Message</label>
-                    <div class="field-container large-field">
-                        <textarea
-                            id="charCreator_field_first_mes"
-                            class="text_pole textarea_compact"
-                            rows="3"
-                        ></textarea>
-                        <button
-                            class="menu_button generate-field-button"
-                            data-field="first_mes"
-                            title="Generate First Message"
-                        >
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        </button>
-                    </div>
-                    <div class="field-prompt-container">
-                        <textarea
-                            id="charCreator_prompt_first_mes"
-                            class="text_pole textarea_compact field-prompt"
-                            rows="2"
-                            placeholder="Enter custom prompt for first message generation..."
-                        ></textarea>
-                    </div>
-                </div>
-
-                <!-- Example Dialogue Field -->
-                <div class="character-field">
-                    <label for="charCreator_field_mes_example">Example Dialogue</label>
-                    <div class="field-container large-field">
-                        <textarea
-                            id="charCreator_field_mes_example"
-                            class="text_pole textarea_compact"
-                            rows="6"
-                        ></textarea>
-                        <button
-                            class="menu_button generate-field-button"
-                            data-field="mes_example"
-                            title="Generate Example Dialogue"
-                        >
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        </button>
-                    </div>
-                    <div class="field-prompt-container">
-                        <textarea
-                            id="charCreator_prompt_mes_example"
-                            class="text_pole textarea_compact field-prompt"
-                            rows="2"
-                            placeholder="Enter custom prompt for example dialogue generation..."
-                        ></textarea>
-                    </div>
-                </div>
+                <!-- Character Fields Container -->
+                <div id="charCreator_fieldsContainer"></div>
             </div>
         </div>
     </div>

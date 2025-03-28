@@ -385,26 +385,85 @@ async function handlePopupUI() {
 
       // --- Setup Right Column (Character Fields) ---
 
-      // Get all field textareas and generate buttons
-      const fieldTextareas: Partial<Record<CharacterFieldName, HTMLTextAreaElement>> = {};
-      const generateButtons: Partial<Record<CharacterFieldName, HTMLButtonElement>> = {};
+      // Define field configurations
+      const fieldConfigs = {
+        name: { label: 'Name', rows: 1, large: false, promptEnabled: false },
+        description: { label: 'Description', rows: 5, large: true, promptEnabled: true },
+        personality: { label: 'Personality', rows: 4, large: true, promptEnabled: true },
+        scenario: { label: 'Scenario', rows: 3, large: true, promptEnabled: true },
+        first_mes: { label: 'First Message', rows: 3, large: true, promptEnabled: true },
+        mes_example: { label: 'Example Dialogue', rows: 6, large: true, promptEnabled: true },
+      };
 
-      CHARACTER_FIELDS.forEach((fieldName) => {
-        fieldTextareas[fieldName] = popupContainer.querySelector(
-          `#charCreator_field_${fieldName}`,
-        ) as HTMLTextAreaElement;
-        generateButtons[fieldName] = popupContainer.querySelector(
-          `button[data-field="${fieldName}"]`,
-        ) as HTMLButtonElement;
-      });
+      // Get template and container
+      const template = popupContainer.querySelector<HTMLTemplateElement>('#charCreator_fieldTemplate');
+      const fieldsContainer = popupContainer.querySelector('#charCreator_fieldsContainer');
+
+      // Initialize storage for field elements
+      // @ts-ignore
+      const fieldElements: Record<
+        CharacterFieldName,
+        {
+          textarea: HTMLTextAreaElement;
+          button: HTMLButtonElement;
+          promptTextarea?: HTMLTextAreaElement;
+        }
+      > = {};
+
+      if (template && fieldsContainer) {
+        // Generate fields from template
+        CHARACTER_FIELDS.forEach((fieldName) => {
+          const config = fieldConfigs[fieldName];
+          const clone = template.content.cloneNode(true) as DocumentFragment;
+
+          // Configure the cloned elements
+          const fieldDiv = clone.querySelector('.character-field');
+          const label = clone.querySelector('label');
+          const textarea = clone.querySelector('.field-container textarea') as HTMLTextAreaElement;
+          const button = clone.querySelector('.generate-field-button') as HTMLButtonElement;
+          const promptTextarea = clone.querySelector('.field-prompt-container textarea') as HTMLTextAreaElement;
+
+          if (fieldDiv && label && textarea && button && promptTextarea) {
+            // Set IDs and attributes
+            textarea.id = `charCreator_field_${fieldName}`;
+            promptTextarea.id = `charCreator_prompt_${fieldName}`;
+            label.dataset.for = textarea.id;
+
+            // Set content
+            label.textContent = config.label;
+            textarea.rows = config.rows;
+            textarea.value = activeSession.fields[fieldName]?.value ?? '';
+            button.dataset.field = fieldName;
+            button.title = `Generate ${config.label}`;
+            promptTextarea.placeholder = `Enter custom prompt for ${config.label.toLowerCase()} generation...`;
+            promptTextarea.value = activeSession.fields[fieldName]?.prompt ?? '';
+
+            if (!config.promptEnabled) {
+              promptTextarea.closest('.field-prompt-container')?.remove();
+            }
+
+            // Add large-field class if needed
+            if (config.large) {
+              textarea.closest('.field-container')?.classList.add('large-field');
+            }
+
+            // Store references
+            fieldElements[fieldName] = {
+              textarea,
+              button,
+              promptTextarea,
+            };
+          }
+
+          fieldsContainer.appendChild(clone);
+        });
+      }
 
       // --- Generation Logic ---
-      Object.entries(generateButtons).forEach(([fieldName, button]) => {
+      Object.entries(fieldElements).forEach(([fieldName, { textarea, button, promptTextarea }]) => {
         if (button) {
           button.addEventListener('click', async () => {
             const targetField = fieldName as CharacterFieldName;
-            const targetTextarea = fieldTextareas[targetField];
-            if (!targetTextarea) return;
 
             // Disable button and show loading state
             button.disabled = true;
@@ -430,16 +489,10 @@ async function handlePopupUI() {
               // @ts-ignore
               const currentFieldValues: Record<CharacterFieldName, { value: string; prompt: string }> = {};
               CHARACTER_FIELDS.forEach((fname) => {
-                const textarea = fieldTextareas[fname];
-                const promptTextarea = popupContainer.querySelector(
-                  `#charCreator_prompt_${fname}`,
-                ) as HTMLTextAreaElement;
-                if (textarea) {
-                  currentFieldValues[fname] = {
-                    value: textarea.value,
-                    prompt: promptTextarea?.value || '',
-                  };
-                }
+                currentFieldValues[fname] = {
+                  value: textarea.value,
+                  prompt: promptTextarea?.value || '',
+                };
               });
 
               const buildPromptOptions: BuildPromptOptions = {
@@ -531,8 +584,8 @@ async function handlePopupUI() {
                 currentFieldValues: currentFieldValues,
               });
 
-              targetTextarea.value = generatedContent;
-              targetTextarea.dispatchEvent(new Event('change'));
+              textarea.value = generatedContent;
+              textarea.dispatchEvent(new Event('change'));
             } catch (error: any) {
               console.error(`Error generating field ${targetField}:`, error);
               st_echo('error', `Failed to generate ${targetField}: ${error.message || error}`);
@@ -541,30 +594,25 @@ async function handlePopupUI() {
               button.innerHTML = originalIcon;
             }
           });
+
+          textarea.addEventListener('change', () => {
+            const field = fieldName as CharacterFieldName;
+            activeSession.fields[field] = {
+              ...activeSession.fields[field],
+              value: textarea.value,
+            };
+            saveSession();
+          });
+
+          promptTextarea?.addEventListener('change', () => {
+            const field = fieldName as CharacterFieldName;
+            activeSession.fields[field] = {
+              ...activeSession.fields[field],
+              prompt: promptTextarea.value,
+            };
+            saveSession();
+          });
         }
-      });
-      Object.entries(fieldTextareas).forEach(([fieldName, textarea]) => {
-        const field = fieldName as CharacterFieldName;
-        const promptTextarea = popupContainer.querySelector(`#charCreator_prompt_${field}`) as HTMLTextAreaElement;
-
-        textarea.value = activeSession.fields[field]?.value || '';
-        promptTextarea.value = activeSession.fields[field]?.prompt || '';
-
-        textarea.addEventListener('change', () => {
-          activeSession.fields[field] = {
-            ...activeSession.fields[field],
-            value: textarea.value,
-          };
-          saveSession();
-        });
-
-        promptTextarea.addEventListener('change', () => {
-          activeSession.fields[field] = {
-            ...activeSession.fields[field],
-            prompt: promptTextarea.value,
-          };
-          saveSession();
-        });
       });
     });
   });
