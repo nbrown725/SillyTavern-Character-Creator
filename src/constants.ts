@@ -105,7 +105,7 @@ export const DEFAULT_LOREBOOK_DEFINITION = `{{#each lorebooks}}
 ## WORLD NAME: {{@key}}
     {{#each this as |entry|}}
       {{#unless entry.disable}}
-- (NAME: {{entry.comment}}) (ID: {{entry.uid}})
+- {{entry.comment}}
 Triggers: {{#if entry.key}}{{join entry.key ', '}}{{else}}*No triggers*{{/if}}
 Content: {{#if entry.content}}{{entry.content}}{{else}}*No content*{{/if}}
 
