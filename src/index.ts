@@ -528,7 +528,6 @@ async function handlePopupUI() {
               targetTextarea.value = generatedContent;
               // Optionally trigger change event if other parts listen to it
               targetTextarea.dispatchEvent(new Event('change'));
-              st_echo('success', `Generated content for "${targetField}".`);
             } catch (error: any) {
               console.error(`Error generating field ${targetField}:`, error);
               st_echo('error', `Failed to generate ${targetField}: ${error.message || error}`);
