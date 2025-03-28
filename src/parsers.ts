@@ -1,8 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
 
-// Export descriptions for settings UI
-export { DEFAULT_XML_FORMAT_DESC, DEFAULT_JSON_FORMAT_DESC, DEFAULT_NONE_FORMAT_DESC } from './constants.js';
-
 const xmlParser = new XMLParser({
   ignoreAttributes: false, // Keep attributes if needed in the future
   allowBooleanAttributes: true,
@@ -44,7 +41,6 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none'):
         throw new Error('Invalid JSON format: "response" key not found or its value is not a string.');
 
       case 'none':
-        // Return the cleaned content directly
         return cleanedContent;
 
       default:
@@ -53,7 +49,7 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none'):
   } catch (error: any) {
     console.error(`Error parsing response in format '${format}':`, error);
     console.error('Raw content received:', content);
-    // Provide a more specific error message
+
     if (format === 'xml' && error.message.includes('Invalid XML')) {
       throw new Error('Model response is not valid XML or does not contain the <response> tag.');
     } else if (format === 'json' && error instanceof SyntaxError) {
@@ -63,10 +59,3 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none'):
     }
   }
 }
-
-// Not strictly needed for character creation unless generating unique identifiers later
-// export function createRandomNumber(length: number): number {
-//   const min = Math.pow(10, length - 1);
-//   const max = Math.pow(10, length) - 1;
-//   return Math.floor(Math.random() * (max - min + 1)) + min;
-// }

@@ -1,15 +1,15 @@
 import { buildPrompt, BuildPromptOptions } from 'sillytavern-utils-lib';
 import { ChatCompletionMessage, ExtractedData } from 'sillytavern-utils-lib/types';
 import { parseResponse } from './parsers.js';
-import { Character } from 'sillytavern-utils-lib/types'; // Assuming Character type exists
+import { Character } from 'sillytavern-utils-lib/types';
+import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 
 // @ts-ignore
 import { Handlebars } from '../../../../../lib.js';
-import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
-// @ts-ignore - Access global context
+
+// @ts-ignore
 export const globalContext = SillyTavern.getContext();
 
-// Define known character fields
 export type CharacterFieldName = 'name' | 'description' | 'personality' | 'scenario' | 'first_mes' | 'mes_example';
 
 export const CHARACTER_FIELDS: CharacterFieldName[] = [
@@ -22,13 +22,13 @@ export const CHARACTER_FIELDS: CharacterFieldName[] = [
 ];
 
 export interface Session {
-  selectedCharacterIndexes: string[]; // Store IDs of characters selected for context
+  selectedCharacterIndexes: string[];
   selectedWorldNames: string[];
   fields: Record<CharacterFieldName, string>;
 }
 
 export interface ContextToSend {
-  stDescription: boolean; // Description of ST and Char Cards
+  stDescription: boolean;
   messages: {
     type: 'none' | 'all' | 'first' | 'last' | 'range';
     first?: number;
@@ -38,29 +38,29 @@ export interface ContextToSend {
       end: number;
     };
   };
-  charCard: boolean; // Whether to include selected characters' data
-  existingFields: boolean; // Whether to include current values of fields being edited
+  charCard: boolean;
+  existingFields: boolean;
   worldInfo: boolean;
 }
 
 export interface RunCharacterFieldGenerationParams {
   profileId: string;
-  userPrompt: string; // The additional prompt from the main textarea
+  userPrompt: string;
   buildPromptOptions: BuildPromptOptions;
   contextToSend: ContextToSend;
   session: Session;
-  allCharacters: Character[]; // Pass the full characters array
+  allCharacters: Character[];
   entriesGroupByWorldName: Record<string, WIEntry[]>;
   promptSettings: {
     stCharCardPrompt: string;
-    charCardDefinitionPrompt: string; // Handlebars template for defining characters
+    charCardDefinitionPrompt: string;
     lorebookDefinitionPrompt: string;
-    formatDescription: string; // Instructions for XML/JSON/None
+    formatDescription: string;
   };
   maxResponseToken: number;
-  targetField: CharacterFieldName; // Which field to generate (e.g., 'description')
+  targetField: CharacterFieldName;
   outputFormat: 'xml' | 'json' | 'none';
-  currentFieldValues: Partial<Record<CharacterFieldName, string>>; // Values currently in textareas
+  currentFieldValues: Partial<Record<CharacterFieldName, string>>;
 }
 
 export async function runCharacterFieldGeneration({
@@ -77,7 +77,6 @@ export async function runCharacterFieldGeneration({
   outputFormat,
   currentFieldValues,
 }: RunCharacterFieldGenerationParams): Promise<string> {
-  // Returns the generated string content
   if (!profileId) {
     throw new Error('No connection profile selected.');
   }
@@ -87,7 +86,6 @@ export async function runCharacterFieldGeneration({
   }
 
   const processedUserPrompt = globalContext.substituteParams(userPrompt.trim());
-  // Note: processedUserPrompt can be empty, it's just extra context
 
   const messages: ChatCompletionMessage[] = [];
   const selectedApi = profile.api ? globalContext.CONNECT_API_MAP[profile.api].selected : undefined;
@@ -95,10 +93,10 @@ export async function runCharacterFieldGeneration({
     throw new Error(`Could not determine API for profile "${profile.name}".`);
   }
 
-  // 1. Build base prompt (system, memory, messages, persona - if applicable)
+  // Build base prompt (system, memory, messages, persona - if applicable)
   messages.push(...(await buildPrompt(selectedApi, buildPromptOptions)));
 
-  // 2. Add ST/Character Card Description
+  // Add ST/Character Card Description
   if (contextToSend.stDescription) {
     messages.push({
       role: 'system',
@@ -106,7 +104,7 @@ export async function runCharacterFieldGeneration({
     });
   }
 
-  // 3. Add Definitions of Selected Characters (if enabled and characters selected)
+  // Add Definitions of Selected Characters (if enabled and characters selected)
   if (contextToSend.charCard && session.selectedCharacterIndexes.length > 0) {
     try {
       const template = Handlebars.compile(promptSettings.charCardDefinitionPrompt, { noEscape: true });
@@ -136,7 +134,7 @@ export async function runCharacterFieldGeneration({
       });
     }
   }
-  // 4. Add Definitions of Selected Lorebooks (World Info)
+  // Add Definitions of Selected Lorebooks (World Info)
   if (contextToSend.worldInfo && session.selectedWorldNames.length > 0) {
     try {
       const template = Handlebars.compile(promptSettings.lorebookDefinitionPrompt, { noEscape: true });
@@ -162,7 +160,7 @@ export async function runCharacterFieldGeneration({
     }
   }
 
-  // 5. Add Current Field Values (if enabled)
+  // Add Current Field Values (if enabled)
   if (contextToSend.existingFields && Object.keys(currentFieldValues).length > 0) {
     let existingFieldsPrompt = '=== CURRENT CHARACTER FIELD VALUES ===\n';
     for (const field of CHARACTER_FIELDS) {
@@ -178,14 +176,13 @@ export async function runCharacterFieldGeneration({
     });
   }
 
-  // 6. Add Output Format Instructions
+  // Add Output Format Instructions
   messages.push({
     role: 'system',
     content: `=== RESPONSE FORMAT INSTRUCTIONS ===\n${promptSettings.formatDescription}`,
   });
 
-  // 7. Construct and Add Final User Task
-  // Basic task description
+  // Construct and Add Final User Task
   let taskDescription = `Your task is to generate the content for the "${targetField}" field of a character card.`;
   taskDescription += ` Base your response on the chat history, persona (if provided), existing field values (if provided), context from other characters (if provided), and context from relevant lorebooks (if provided).`;
   if (processedUserPrompt) {
@@ -207,7 +204,7 @@ export async function runCharacterFieldGeneration({
 
   // console.log("Received raw content:", response.content); // For debugging
 
-  // 8. Parse the response based on the expected format
+  // Parse the response based on the expected format
   const parsedContent = parseResponse(response.content, outputFormat);
 
   return parsedContent;

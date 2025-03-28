@@ -10,8 +10,8 @@ import {
 import { ContextToSend } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
-export const VERSION = '0.1.0'; // Initial version
-export const FORMAT_VERSION = 'F_1.0'; // Data format version
+export const VERSION = '0.1.0';
+export const FORMAT_VERSION = 'F_1.0';
 
 export const KEYS = {
   EXTENSION: 'charCreator',
@@ -63,11 +63,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   maxContextType: 'profile',
   maxContextValue: 16384,
   maxResponseToken: 1024,
-  outputFormat: 'none', // Default to plain text
+  outputFormat: 'none',
   contextToSend: {
-    stDescription: true, // Description of ST/CharCard
+    stDescription: true,
     messages: {
-      type: 'last', // Default to last 10 messages
+      type: 'last',
       first: 10,
       last: 10,
       range: {
@@ -75,8 +75,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         end: 10,
       },
     },
-    charCard: true, // Include selected character context
-    existingFields: true, // Include current field values
+    charCard: true,
+    existingFields: true,
     worldInfo: true,
   },
 
@@ -102,7 +102,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   promptPreset: 'default',
   promptPresets: {
     default: {
-      // Default prompt can be more specific to character creation
       content:
         'Generate the field content based on the chat history and existing character details. Be creative but consistent.',
     },

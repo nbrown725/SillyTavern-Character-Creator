@@ -1,10 +1,5 @@
 import { buildFancyDropdown, buildPresetSelect, BuildPromptOptions, DropdownItem } from 'sillytavern-utils-lib';
-import {
-  selected_group,
-  st_echo, // Use st_echo for user feedback
-  this_chid,
-  world_names,
-} from 'sillytavern-utils-lib/config';
+import { selected_group, st_echo, this_chid, world_names } from 'sillytavern-utils-lib/config';
 import { POPUP_TYPE } from 'sillytavern-utils-lib/types/popup';
 
 import {
@@ -13,17 +8,15 @@ import {
   Session,
   ContextToSend,
   CharacterFieldName,
-  CHARACTER_FIELDS, // Import the list of fields
+  CHARACTER_FIELDS,
 } from './generate.js';
-// import { initializeCommands, setPopupIcon } from './commands.js'; // Keep if using commands
 
-// @ts-ignore - Access Handlebars globally
-import { Handlebars } from '../../../../../lib.js';
 import { extensionName, settingsManager, ExtensionSettings, OutputFormat } from './settings.js';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 
-// Ensure Handlebars helpers are registered (if needed)
+// @ts-ignore
+import { Handlebars } from '../../../../../lib.js';
 if (!Handlebars.helpers['join']) {
   Handlebars.registerHelper('join', function (array: any, separator: any) {
     if (Array.isArray(array)) {
@@ -32,7 +25,7 @@ if (!Handlebars.helpers['join']) {
     return '';
   });
 }
-// Helper to check if a value is non-empty
+
 Handlebars.registerHelper('ifValue', function (this: any, conditional: any, options: any) {
   if (conditional && String(conditional).trim().length > 0) {
     return options.fn(this);
@@ -40,8 +33,6 @@ Handlebars.registerHelper('ifValue', function (this: any, conditional: any, opti
     return options.inverse(this);
   }
 });
-
-// const converter = new showdown.Converter(); // Keep if markdown rendering is needed anywhere
 
 async function handleSettingsUI() {
   const settingsHtml = await globalContext.renderExtensionTemplateAsync(
@@ -78,7 +69,6 @@ async function handleSettingsUI() {
       );
       if (confirm) {
         textarea.value = defaultText;
-        // Trigger change event manually for vanilla JS
         textarea.dispatchEvent(new Event('change'));
       }
     });
@@ -115,16 +105,13 @@ async function handleSettingsUI() {
 }
 
 async function handlePopupUI() {
-  // Add popup icon to the UI
-  // Choose appropriate location - e.g., next to send button or in character header
   const iconHtml = `<div class="menu_button fa-solid fa-user-astronaut interactable charCreator-icon" title="Character Creator"></div>`;
-  // Example: Add to chat input area
+
   $('.form_create_bottom_buttons_block').prepend(iconHtml);
   $('#GroupFavDelOkBack').prepend(iconHtml); // Add to group management too if needed
   $('#form_character_search_form').prepend(iconHtml);
 
   const popupIcons = document.querySelectorAll('.charCreator-icon');
-  // setPopupIcon(popupIcons[0]); // If using commands.js helper
 
   popupIcons.forEach((icon) => {
     icon.addEventListener('click', async () => {
@@ -133,8 +120,8 @@ async function handlePopupUI() {
         'templates/popup',
       );
       globalContext.callGenericPopup(popupHtml, POPUP_TYPE.DISPLAY, undefined, {
-        large: true, // Make popup larger
-        wide: true, // Make popup wider
+        large: true,
+        wide: true,
       });
 
       const popupContainer = document.getElementById('charCreatorPopup');
@@ -277,10 +264,10 @@ async function handlePopupUI() {
       const sessionKey = `charCreator`;
       const activeSession: Session = JSON.parse(localStorage.getItem(sessionKey) ?? '{}');
       if (!activeSession.selectedCharacterIndexes) {
-        activeSession.selectedCharacterIndexes = this_chid ? [this_chid] : []; // Default to current char if not group
+        activeSession.selectedCharacterIndexes = this_chid ? [this_chid] : [];
       }
       if (!activeSession.selectedWorldNames) {
-        activeSession.selectedWorldNames = []; // Default to none selected
+        activeSession.selectedWorldNames = [];
       }
       if (!activeSession.fields) {
         // @ts-ignore
@@ -300,15 +287,14 @@ async function handlePopupUI() {
       // "Characters to Include" Dropdown
       const charSelectorContainer = popupContainer.querySelector('#charCreator_characterSelector');
       if (charSelectorContainer) {
-        // Prepare items for the dropdown
         const characterItems: DropdownItem[] = context.characters.map((char: Character) => ({
           value: context.characters.indexOf(char).toString(),
           label: char.name,
         }));
 
         buildFancyDropdown('#charCreator_characterSelector', {
-          initialList: characterItems, // Use the prepared list
-          initialValues: activeSession.selectedCharacterIndexes, // Use stored IDs
+          initialList: characterItems,
+          initialValues: activeSession.selectedCharacterIndexes,
           placeholderText: 'Select characters for context...',
           enableSearch: characterItems.length > 10,
           onSelectChange: (_previousValues: string[], newValues: string[]) => {
@@ -324,8 +310,8 @@ async function handlePopupUI() {
       try {
         if (worldInfoSelectorContainer && allWorldNames.length > 0) {
           buildFancyDropdown('#charCreator_worldInfoSelector', {
-            initialList: allWorldNames, // List of names
-            initialValues: activeSession.selectedWorldNames, // Use stored names
+            initialList: allWorldNames,
+            initialValues: activeSession.selectedWorldNames,
             placeholderText: 'Select lorebooks for context...',
             enableSearch: allWorldNames.length > 10,
             onSelectChange: (_previousValues: string[], newValues: string[]) => {
@@ -346,7 +332,7 @@ async function handlePopupUI() {
       // Additional Instructions / Prompt Preset
       const promptTextarea = popupContainer.querySelector('#charCreator_prompt') as HTMLTextAreaElement;
       buildPresetSelect('#charCreatorPopup #charCreator_promptPreset', {
-        label: 'instructionPreset', // Unique label
+        label: 'instructionPreset',
         initialValue: settings.promptPreset,
         initialList: Object.keys(settings.promptPresets),
         readOnlyValues: ['default'],
@@ -362,20 +348,17 @@ async function handlePopupUI() {
             settings.promptPresets[value] = {
               content: currentPreset?.content ?? '',
             };
-            settingsManager.saveSettings(); // Save after create
           },
         },
         rename: {
           onAfterRename: (previousValue, newValue) => {
             settings.promptPresets[newValue] = settings.promptPresets[previousValue];
             delete settings.promptPresets[previousValue];
-            settingsManager.saveSettings(); // Save after rename
           },
         },
         delete: {
           onAfterDelete: (value) => {
             delete settings.promptPresets[value];
-            settingsManager.saveSettings(); // Save after delete
           },
         },
       });
@@ -413,7 +396,7 @@ async function handlePopupUI() {
             // Disable button and show loading state
             button.disabled = true;
             const originalIcon = button.innerHTML;
-            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; // Use FA spinner
+            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
             try {
               const userPrompt = (popupContainer.querySelector('#charCreator_prompt') as HTMLTextAreaElement).value;
@@ -431,7 +414,6 @@ async function handlePopupUI() {
                 return;
               }
 
-              // Collect current values from all fields
               const currentFieldValues: Partial<Record<CharacterFieldName, string>> = {};
               CHARACTER_FIELDS.forEach((fname) => {
                 if (fieldTextareas[fname]) {
@@ -439,26 +421,21 @@ async function handlePopupUI() {
                 }
               });
 
-              // Build Prompt Options
               const buildPromptOptions: BuildPromptOptions = {
                 presetName: profile?.preset,
                 contextName: profile?.context,
                 instructName: profile?.instruct,
-                // Determine which character's card fields to potentially ignore/use based on group mode
-                // If in group mode and using a specific member's persona, target that ID.
-                // Otherwise (single chat or no specific group target), use the default behavior (which uses this_chid).
                 targetCharacterId: this_chid,
-                // We want the base persona/description etc. from the targetCharacterId
-                ignoreCharacterFields: true, // Use the target char's fields
-                ignoreWorldInfo: true, // Not relevant here
-                ignoreAuthorNote: true, // Removed
+                ignoreCharacterFields: true,
+                ignoreWorldInfo: true,
+                ignoreAuthorNote: true,
                 maxContext:
                   settings.maxContextType === 'custom'
                     ? settings.maxContextValue
                     : settings.maxContextType === 'profile'
                       ? 'preset'
                       : 'active',
-                includeNames: !!selected_group, // Include {{user}} / {{char}} names in group chat
+                includeNames: !!selected_group,
               };
 
               // Add message range options
@@ -486,10 +463,9 @@ async function handlePopupUI() {
                   break;
                 case 'all':
                 default:
-                  break; // No specific range needed
+                  break;
               }
 
-              // Determine which format description to send
               let formatDescription = '';
               switch (settings.outputFormat) {
                 case 'xml':
@@ -519,8 +495,8 @@ async function handlePopupUI() {
                 userPrompt: userPrompt,
                 buildPromptOptions: buildPromptOptions,
                 contextToSend: settings.contextToSend,
-                session: activeSession, // Pass current session state
-                allCharacters: context.characters, // Pass all characters
+                session: activeSession,
+                allCharacters: context.characters,
                 entriesGroupByWorldName: entriesGroupByWorldName,
                 promptSettings: {
                   stCharCardPrompt: settings.stCharCardPrompt,
@@ -534,15 +510,12 @@ async function handlePopupUI() {
                 currentFieldValues: currentFieldValues,
               });
 
-              // Update the textarea
               targetTextarea.value = generatedContent;
-              // Optionally trigger change event if other parts listen to it
               targetTextarea.dispatchEvent(new Event('change'));
             } catch (error: any) {
               console.error(`Error generating field ${targetField}:`, error);
               st_echo('error', `Failed to generate ${targetField}: ${error.message || error}`);
             } finally {
-              // Restore button state
               button.disabled = false;
               button.innerHTML = originalIcon;
             }
@@ -561,18 +534,15 @@ async function handlePopupUI() {
 }
 
 function stagingCheck(): boolean {
-  // Add checks for any absolutely essential ST staging functions if needed
   if (!globalContext.ConnectionManagerRequestService) return false;
   return true;
 }
 
 function main() {
-  handleSettingsUI(); // Setup settings panel
-  handlePopupUI(); // Setup popup icon and its functionality
-  // initializeCommands(); // If using slash commands
+  handleSettingsUI();
+  handlePopupUI();
 }
 
-// Initialization logic
 if (!stagingCheck()) {
   console.error(`[${extensionName}] Error: Required SillyTavern functions not found. Make sure ST is up-to-date.`);
   st_echo('error', `[${extensionName}] Initialization failed. Please ensure SillyTavern is updated.`);
@@ -584,7 +554,6 @@ if (!stagingCheck()) {
         const settings = settingsManager.getSettings();
         let settingsChanged = false;
 
-        // Helper to update default prompts if needed
         const checkAndUpdateDefault = (
           settingKey: keyof ExtensionSettings,
           defaultKey: keyof typeof import('./constants.js'),
@@ -599,7 +568,6 @@ if (!stagingCheck()) {
           }
         };
 
-        // Check and update all relevant default prompts
         checkAndUpdateDefault('stCharCardPrompt', 'DEFAULT_CHAR_CARD_DESCRIPTION', 'usingDefaultStCharCardPrompt');
         checkAndUpdateDefault(
           'charCardDefinitionPrompt',
@@ -615,12 +583,11 @@ if (!stagingCheck()) {
           settingsManager.saveSettings();
         }
       }
-      main(); // Run the main extension setup
+      main();
     })
     .catch((error) => {
       console.error(`[${extensionName}] Error initializing settings:`, error);
       st_echo('error', `[${extensionName}] Failed to initialize settings: ${error.message}`);
-      // Offer to reset settings as a recovery option
       globalContext.Popup.show
         .confirm(
           `[${extensionName}] Failed to load settings. This might be due to an update. Reset settings to default?`,
@@ -630,7 +597,7 @@ if (!stagingCheck()) {
           if (result) {
             settingsManager.resetSettings();
             st_echo('success', `[${extensionName}] Settings reset. Reloading may be required.`);
-            main(); // Try to run main again after reset
+            main();
           }
         });
     });
