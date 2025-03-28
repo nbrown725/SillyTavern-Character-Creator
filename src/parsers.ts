@@ -30,6 +30,16 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none'):
         } else if (responseValueXml && typeof responseValueXml['#text'] === 'string') {
           // Handle cases where parser puts content in #text
           return responseValueXml['#text'].trim();
+        } else if (responseValueXml && Object.keys(responseValueXml).length > 0) {
+          // Handle case with multiple keys by taking first value
+          const firstValue = Object.values(responseValueXml)[0];
+          if (typeof firstValue === 'string') {
+            return firstValue.trim();
+            // @ts-ignore
+          } else if (typeof firstValue?.['#text'] === 'string') {
+            // @ts-ignore
+            return firstValue['#text'].trim();
+          }
         }
         throw new Error('Invalid XML format: <response> tag content not found or not a string.');
 
@@ -37,6 +47,9 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none'):
         const parsedJson = JSON.parse(cleanedContent);
         if (parsedJson && typeof parsedJson.response === 'string') {
           return parsedJson.response.trim();
+        } else if (parsedJson && Object.keys(parsedJson.response).length > 0) {
+          // Handle case with multiple keys by taking first value
+          return String(Object.values(parsedJson.response)[0]).trim();
         }
         throw new Error('Invalid JSON format: "response" key not found or its value is not a string.');
 

@@ -83,25 +83,31 @@
                     <!-- Include Character Context -->
                     <label class="checkbox_label" for="charCreator_includeChars">
                         <input type="checkbox" id="charCreator_includeChars" />
-                        Include Selected Characters' Data
+                        Selected Characters' Data
                     </label>
-                    <div id="charCreator_charIncludeContainer" style="margin-top: 5px; padding-left: 15px">
-                        <div id="charCreator_characterSelector"></div>
+                    <div
+                        id="charCreator_charIncludeContainer"
+                        style="margin-top: 5px; padding-left: 15px; display: none"
+                    >
+                        <div id="charCreator_characterSelector" class="selector-summary"></div>
                     </div>
 
                     <!-- Include World Info Context -->
-                    <label class="checkbox_label" for="charCreator_includeWorldInfo" style="margin-top: 8px">
+                    <label class="checkbox_label" for="charCreator_includeWorldInfo" style="margin-top: 15px">
                         <input type="checkbox" id="charCreator_includeWorldInfo" />
-                        Include Selected World Info (Lorebooks)
+                        Selected World Info
                     </label>
-                    <div id="charCreator_worldInfoIncludeContainer" style="margin-top: 5px; padding-left: 15px">
-                        <div id="charCreator_worldInfoSelector"></div>
+                    <div
+                        id="charCreator_worldInfoIncludeContainer"
+                        style="margin-top: 5px; padding-left: 15px; display: none"
+                    >
+                        <div id="charCreator_worldInfoSelector" class="selector-summary"></div>
                     </div>
 
                     <!-- Include Existing Fields -->
-                    <label class="checkbox_label" for="charCreator_includeExistingFields">
+                    <label class="checkbox_label" for="charCreator_includeExistingFields" style="margin-top: 15px">
                         <input type="checkbox" id="charCreator_includeExistingFields" />
-                        Include Existing Field Content
+                        Existing Field Content
                     </label>
                 </div>
             </div>

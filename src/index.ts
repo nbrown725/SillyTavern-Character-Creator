@@ -144,9 +144,13 @@ async function handlePopupUI() {
       // Context Sending Options
       const stDescriptionCheckbox = popupContainer.querySelector('#charCreator_stDescription') as HTMLInputElement;
       const includeCharsCheckbox = popupContainer.querySelector('#charCreator_includeChars') as HTMLInputElement;
+      const includeCharsContainer = popupContainer.querySelector('#charCreator_charIncludeContainer') as HTMLDivElement;
       const includeWorldInfoCheckbox = popupContainer.querySelector(
         '#charCreator_includeWorldInfo',
       ) as HTMLInputElement;
+      const includeWorldInfoContainer = popupContainer.querySelector(
+        '#charCreator_worldInfoIncludeContainer',
+      ) as HTMLDivElement;
       const includeExistingFieldsCheckbox = popupContainer.querySelector(
         '#charCreator_includeExistingFields',
       ) as HTMLInputElement;
@@ -154,6 +158,10 @@ async function handlePopupUI() {
       stDescriptionCheckbox.checked = settings.contextToSend.stDescription;
       includeCharsCheckbox.checked = settings.contextToSend.charCard;
       includeExistingFieldsCheckbox.checked = settings.contextToSend.existingFields;
+      includeWorldInfoCheckbox.checked = settings.contextToSend.worldInfo;
+
+      includeCharsContainer.style.display = includeCharsCheckbox.checked ? 'block' : 'none';
+      includeWorldInfoContainer.style.display = includeWorldInfoCheckbox.checked ? 'block' : 'none';
 
       stDescriptionCheckbox.addEventListener('change', () => {
         settings.contextToSend.stDescription = stDescriptionCheckbox.checked;
@@ -161,10 +169,12 @@ async function handlePopupUI() {
       });
       includeCharsCheckbox.addEventListener('change', () => {
         settings.contextToSend.charCard = includeCharsCheckbox.checked;
+        includeCharsContainer.style.display = includeCharsCheckbox.checked ? 'block' : 'none';
         settingsManager.saveSettings();
       });
       includeWorldInfoCheckbox.addEventListener('change', () => {
         settings.contextToSend.worldInfo = includeWorldInfoCheckbox.checked;
+        includeWorldInfoContainer.style.display = includeWorldInfoCheckbox.checked ? 'block' : 'none';
         settingsManager.saveSettings();
       });
       includeExistingFieldsCheckbox.addEventListener('change', () => {
