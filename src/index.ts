@@ -460,9 +460,52 @@ async function handlePopupUI() {
       }
 
       // --- Button Actions ---
-      const resetButton = popupContainer.querySelector('#charCreator_reset') as HTMLButtonElement;
-      const loadCharButton = popupContainer.querySelector('#charCreator_loadChar') as HTMLButtonElement;
+      // Setup Load Character Dropdown
+      const loadCharSelectorContainer = popupContainer.querySelector('#charCreator_loadCharSelector');
+      if (loadCharSelectorContainer) {
+        const characterItems: DropdownItem[] = context.characters.map((char: Character) => ({
+          value: context.characters.indexOf(char).toString(),
+          label: char.name,
+        }));
 
+        buildFancyDropdown('#charCreator_loadCharSelector', {
+          initialList: characterItems,
+          initialValues: [],
+          placeholderText: 'Load Character Data...',
+          enableSearch: characterItems.length > 10,
+          multiple: false,
+          closeOnSelect: true,
+          onSelectChange: (_previousValues: string[], newValues: string[]) => {
+            if (newValues.length === 0) return;
+            const selectedId = newValues[0];
+            if (selectedId.length === 0) return;
+
+            const character = context.characters[parseInt(selectedId)];
+            if (!character) {
+              st_echo('warning', 'Selected character not found.');
+              return;
+            }
+
+            // Load the character fields
+            CHARACTER_FIELDS.forEach((fieldName) => {
+              const textarea = fieldElements[fieldName]?.textarea;
+              const promptTextarea = fieldElements[fieldName]?.promptTextarea;
+
+              if (textarea) {
+                // @ts-ignore
+                textarea.value = character[fieldName] ?? '';
+                textarea.dispatchEvent(new Event('change'));
+              }
+              if (promptTextarea && promptTextarea.value.trim() !== '') {
+                promptTextarea.value = '';
+                promptTextarea.dispatchEvent(new Event('change'));
+              }
+            });
+          },
+        });
+      }
+
+      const resetButton = popupContainer.querySelector('#charCreator_reset') as HTMLButtonElement;
       resetButton.addEventListener('click', async () => {
         const confirm = await globalContext.Popup.show.confirm(
           'Reset Fields',
@@ -480,70 +523,6 @@ async function handlePopupUI() {
             }
           });
         }
-      });
-
-      loadCharButton.addEventListener('click', async () => {
-        // Create popup container
-        const loadCharPopup = document.createElement('div');
-        loadCharPopup.id = 'charCreator_loadCharPopup';
-
-        const title = document.createElement('h3');
-        title.textContent = 'Select Character to Load';
-        loadCharPopup.appendChild(title);
-
-        const selectorContainer = document.createElement('div');
-        selectorContainer.id = 'charCreator_loadCharSelector';
-        loadCharPopup.appendChild(selectorContainer);
-
-        let selectedCharacterId: string | null = null;
-
-        const characterItems: DropdownItem[] = context.characters.map((char: Character) => ({
-          value: context.characters.indexOf(char).toString(),
-          label: char.name,
-        }));
-
-        // Initialize dropdown before popup
-        buildFancyDropdown(selectorContainer, {
-          initialList: characterItems,
-          initialValues: this_chid ? [this_chid.toString()] : [],
-          placeholderText: 'Select a character...',
-          enableSearch: characterItems.length > 10,
-          multiple: false,
-          onSelectChange: (_previousValues: string[], newValues: string[]) => {
-            selectedCharacterId = newValues[0] ?? null;
-          },
-        });
-
-        // Show popup and wait for selection
-        const confirmed = await globalContext.callGenericPopup(loadCharPopup, POPUP_TYPE.CONFIRM);
-
-        if (!confirmed || !selectedCharacterId) {
-          return;
-        }
-
-        const selectedId = parseInt(selectedCharacterId);
-        const character = context.characters[selectedId];
-
-        if (!character) {
-          st_echo('warning', 'Selected character not found.');
-          return;
-        }
-
-        // Load the character fields
-        CHARACTER_FIELDS.forEach((fieldName) => {
-          const textarea = fieldElements[fieldName]?.textarea;
-          const promptTextarea = fieldElements[fieldName]?.promptTextarea;
-
-          if (textarea) {
-            // @ts-ignore
-            textarea.value = character[fieldName] ?? '';
-            textarea.dispatchEvent(new Event('change'));
-          }
-          if (promptTextarea && promptTextarea.value.trim() !== '') {
-            promptTextarea.value = '';
-            promptTextarea.dispatchEvent(new Event('change'));
-          }
-        });
       });
 
       // --- Generation Logic ---

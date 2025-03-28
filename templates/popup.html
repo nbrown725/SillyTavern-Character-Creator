@@ -182,22 +182,15 @@
 
         <!-- Right Column: Character Fields -->
         <div class="wide-column">
+            <!-- Field Actions -->
+            <div class="character-field-actions" style="display: flex; gap: 15px; flex-direction: row-reverse">
+                <button id="charCreator_reset" class="menu_button">
+                    Reset Fields<i class="fa-solid fa-rotate-left" style="margin-left: 10px"></i>
+                </button>
+                <div id="charCreator_loadCharSelector" style="width: 200px" title="Load Character Data"></div>
+            </div>
             <div class="card">
                 <h3>Character Fields</h3>
-
-                <!-- Field Actions -->
-                <div
-                    class="character-field-actions"
-                    style="margin-bottom: 15px; display: flex; gap: 15px; flex-direction: row-reverse"
-                >
-                    <button id="charCreator_reset" class="menu_button">
-                        Reset Fields<i class="fa-solid fa-rotate-left" style="margin-left: 10px"></i>
-                    </button>
-                    <button id="charCreator_loadChar" class="menu_button">
-                        Load Character<i class="fa-solid fa-upload" style="margin-left: 10px"></i>
-                    </button>
-                </div>
-
                 <!-- Character Field Template -->
                 <template id="charCreator_fieldTemplate">
                     <div class="character-field">
