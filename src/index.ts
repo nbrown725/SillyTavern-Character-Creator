@@ -285,7 +285,10 @@ async function handlePopupUI() {
       }
       CHARACTER_FIELDS.forEach((field) => {
         if (!activeSession.fields[field]) {
-          activeSession.fields[field] = '';
+          activeSession.fields[field] = {
+            value: '',
+            prompt: '',
+          };
         }
       });
       const saveSession = () => {
@@ -424,10 +427,18 @@ async function handlePopupUI() {
                 return;
               }
 
-              const currentFieldValues: Partial<Record<CharacterFieldName, string>> = {};
+              // @ts-ignore
+              const currentFieldValues: Record<CharacterFieldName, { value: string; prompt: string }> = {};
               CHARACTER_FIELDS.forEach((fname) => {
-                if (fieldTextareas[fname]) {
-                  currentFieldValues[fname] = fieldTextareas[fname]?.value;
+                const textarea = fieldTextareas[fname];
+                const promptTextarea = popupContainer.querySelector(
+                  `#charCreator_prompt_${fname}`,
+                ) as HTMLTextAreaElement;
+                if (textarea) {
+                  currentFieldValues[fname] = {
+                    value: textarea.value,
+                    prompt: promptTextarea?.value || '',
+                  };
                 }
               });
 
@@ -533,9 +544,25 @@ async function handlePopupUI() {
         }
       });
       Object.entries(fieldTextareas).forEach(([fieldName, textarea]) => {
-        textarea.value = activeSession.fields[fieldName as CharacterFieldName] || '';
+        const field = fieldName as CharacterFieldName;
+        const promptTextarea = popupContainer.querySelector(`#charCreator_prompt_${field}`) as HTMLTextAreaElement;
+
+        textarea.value = activeSession.fields[field]?.value || '';
+        promptTextarea.value = activeSession.fields[field]?.prompt || '';
+
         textarea.addEventListener('change', () => {
-          activeSession.fields[fieldName as CharacterFieldName] = textarea.value;
+          activeSession.fields[field] = {
+            ...activeSession.fields[field],
+            value: textarea.value,
+          };
+          saveSession();
+        });
+
+        promptTextarea.addEventListener('change', () => {
+          activeSession.fields[field] = {
+            ...activeSession.fields[field],
+            prompt: promptTextarea.value,
+          };
           saveSession();
         });
       });

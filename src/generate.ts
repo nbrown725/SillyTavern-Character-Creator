@@ -21,10 +21,15 @@ export const CHARACTER_FIELDS: CharacterFieldName[] = [
   'mes_example',
 ];
 
+export interface CharacterField {
+  prompt: string;
+  value: string;
+}
+
 export interface Session {
   selectedCharacterIndexes: string[];
   selectedWorldNames: string[];
-  fields: Record<CharacterFieldName, string>;
+  fields: Record<CharacterFieldName, CharacterField>;
 }
 
 export interface ContextToSend {
@@ -60,7 +65,7 @@ export interface RunCharacterFieldGenerationParams {
   maxResponseToken: number;
   targetField: CharacterFieldName;
   outputFormat: 'xml' | 'json' | 'none';
-  currentFieldValues: Partial<Record<CharacterFieldName, string>>;
+  currentFieldValues: Record<CharacterFieldName, CharacterField>;
 }
 
 export async function runCharacterFieldGeneration({
@@ -161,13 +166,13 @@ export async function runCharacterFieldGeneration({
   }
 
   // Add Current Field Values (if enabled)
-  if (contextToSend.existingFields && Object.keys(currentFieldValues).length > 0) {
+  if (contextToSend.existingFields && session.fields && Object.keys(session.fields).length > 0) {
     let existingFieldsPrompt = '=== CURRENT CHARACTER FIELD VALUES ===\n';
     for (const field of CHARACTER_FIELDS) {
-      const value = currentFieldValues[field];
+      const fieldData = session.fields[field];
       // Don't include the target field itself if it's empty, provide context from others
-      if (field !== targetField || (value && value.trim() !== '')) {
-        existingFieldsPrompt += `- ${field}: ${value || '*Not filled*'}\n`;
+      if (field !== targetField || (fieldData?.value && fieldData.value.trim() !== '')) {
+        existingFieldsPrompt += `- ${field}: ${fieldData?.value || '*Not filled*'}\n`;
       }
     }
     messages.push({
@@ -185,6 +190,14 @@ export async function runCharacterFieldGeneration({
   // Construct and Add Final User Task
   let taskDescription = `Your task is to generate the content for the "${targetField}" field of a character card.`;
   taskDescription += ` Base your response on the chat history, persona (if provided), existing field values (if provided), context from other characters (if provided), and context from relevant lorebooks (if provided).`;
+
+  // Add field-specific prompt if exists
+  const fieldData = session.fields[targetField];
+  if (fieldData?.prompt) {
+    taskDescription += `\n\nField-specific instructions: ${fieldData.prompt}`;
+  }
+
+  // Add user's custom prompt if provided
   if (processedUserPrompt) {
     taskDescription += `\n\nFollow these specific instructions: ${processedUserPrompt}`;
   }
