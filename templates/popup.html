@@ -1,27 +1,30 @@
-<div id="worldInfoRecommenderPopup">
-    <h2>World Info Recommender</h2>
+<div id="charCreatorAssistantPopup">
+    <h2>Character Creator Assistant</h2>
     <div class="container">
+        <!-- Left Column: Settings & Context -->
         <div class="column">
             <div class="card">
                 <h3>Connection Profile</h3>
                 <select
-                    id="worldInfoRecommend_connectionProfile"
+                    id="charCreator_connectionProfile"
                     class="text_pole"
                     title="Select a Connection Profile"
-                    data-i18n="[title]Select a Connection Profile"
                 ></select>
             </div>
 
             <div class="card">
                 <h3>Context to Send</h3>
-                <div style="display: flex; flex-direction: column">
-                    <label class="checkbox_label" for="worldInfoRecommend_stDescription">
-                        <input type="checkbox" id="worldInfoRecommend_stDescription" />
-                        Description of SillyTavern and Lorebook
+                <div class="context-options">
+                    <!-- ST/CharCard Description -->
+                    <label class="checkbox_label" for="charCreator_stDescription">
+                        <input type="checkbox" id="charCreator_stDescription" />
+                        Description of SillyTavern & Char Card
                     </label>
+
+                    <!-- Message Inclusion -->
                     <div class="message-options">
                         <h4>Messages to Include</h4>
-                        <select id="messageType" class="text_pole">
+                        <select id="charCreator_messageType" class="text_pole">
                             <option value="none">None</option>
                             <option value="all">All Messages</option>
                             <option value="first">First X Messages</option>
@@ -29,41 +32,39 @@
                             <option value="range">Range</option>
                         </select>
 
-                        <div id="firstX" style="display: none; margin-top: 10px">
+                        <div id="charCreator_firstX" style="display: none">
                             <label
                                 >First
                                 <input
                                     type="number"
                                     class="text_pole small message-input"
-                                    id="firstXMessages"
+                                    id="charCreator_firstXMessages"
                                     min="1"
                                     placeholder="X"
                                 />
                                 Messages
                             </label>
                         </div>
-
-                        <div id="lastX" style="display: none; margin-top: 10px">
+                        <div id="charCreator_lastX" style="display: none">
                             <label
                                 >Last
                                 <input
                                     type="number"
                                     class="text_pole small message-input"
-                                    id="lastXMessages"
+                                    id="charCreator_lastXMessages"
                                     min="1"
                                     placeholder="X"
                                 />
                                 Messages
                             </label>
                         </div>
-
-                        <div id="rangeX" style="display: none; margin-top: 10px">
+                        <div id="charCreator_rangeX" style="display: none">
                             <label
                                 >Range:
                                 <input
                                     type="number"
                                     class="text_pole small message-input"
-                                    id="rangeStart"
+                                    id="charCreator_rangeStart"
                                     min="0"
                                     placeholder="Start"
                                 />
@@ -71,57 +72,56 @@
                                 <input
                                     type="number"
                                     class="text_pole small message-input"
-                                    id="rangeEnd"
+                                    id="charCreator_rangeEnd"
                                     min="1"
                                     placeholder="End"
                                 />
                             </label>
                         </div>
                     </div>
-                    <label style="margin-top: 10px" class="checkbox_label" for="worldInfoRecommend_charCard">
-                        <input type="checkbox" id="worldInfoRecommend_charCard" />
-                        Char Card
+
+                    <!-- Include Character Context -->
+                    <label class="checkbox_label" for="charCreator_includeChars">
+                        <input type="checkbox" id="charCreator_includeChars" />
+                        Include Selected Characters' Data
                     </label>
-                    <div id="worldInfoRecommend_charCardContainer" style="display: none; margin-bottom: 10px">
-                        <h4>Select Character</h4>
+                    <div id="charCreator_charIncludeContainer" style="margin-top: 5px; padding-left: 15px">
+                        <div id="charCreator_characterSelector"></div>
+                    </div>
+
+                    <!-- Include Existing Fields -->
+                    <label class="checkbox_label" for="charCreator_includeExistingFields">
+                        <input type="checkbox" id="charCreator_includeExistingFields" />
+                        Include Existing Field Content
+                    </label>
+
+                    <!-- Group Character Card Selection (Only shows in group chat) -->
+                    <div id="charCreator_charCardContainer" style="display: none; margin-top: 10px">
+                        <h4>Target Character (for Persona)</h4>
                         <select
-                            id="worldInfoRecommend_charCardSelect"
+                            id="charCreator_charCardSelect"
                             class="text_pole"
-                            title="Select character for your group. It'll only be used for the Char Card"
+                            title="Select character persona to use (relevant in group chats)."
                         ></select>
+                        <small>Only used for setting the main persona context if needed.</small>
                     </div>
-                    <label class="checkbox_label" for="worldInfoRecommend_authorNote">
-                        <input type="checkbox" id="worldInfoRecommend_authorNote" />
-                        Author Note
-                    </label>
-                    <label class="checkbox_label" for="worldInfoRecommend_worldInfo">
-                        <input type="checkbox" id="worldInfoRecommend_worldInfo" />
-                        World Info
-                    </label>
-                    <div>
-                        <h4>Lorebooks to Include</h4>
-                        <div id="worldInfoRecommend_worldInfoContainer"></div>
-                    </div>
-                    <label class="checkbox_label" for="worldInfoRecommend_includeSuggestedEntries">
-                        <input type="checkbox" id="worldInfoRecommend_includeSuggestedEntries" />
-                        Existing Suggestions
-                    </label>
                 </div>
             </div>
 
             <div class="card">
+                <h3>Generation Options</h3>
+                <!-- Max Context -->
                 <label>
-                    Max Context
-                    <select id="worldInfoRecommend_maxContextType" class="text_pole" title="Select Max Context Type">
+                    Max Context Tokens
+                    <select id="charCreator_maxContextType" class="text_pole" title="Select Max Context Type">
                         <option value="profile">Use profile preset</option>
-                        <option value="sampler">Use active preset in sampler settings</option>
+                        <option value="sampler">Use active preset</option>
                         <option value="custom">Custom</option>
                     </select>
                 </label>
-
-                <label id="worldInfoRecommend_maxTokens_container" style="display: none; margin-top: 10px">
+                <label id="charCreator_maxTokens_container" style="display: none; margin-top: 10px">
                     <input
-                        id="worldInfoRecommend_maxTokens"
+                        id="charCreator_maxTokens"
                         type="number"
                         class="text_pole"
                         min="1"
@@ -130,10 +130,11 @@
                     />
                 </label>
 
-                <label
-                    >Max Response Tokens
+                <!-- Max Response Tokens -->
+                <label style="margin-top: 10px">
+                    Max Response Tokens
                     <input
-                        id="worldInfoRecommend_maxResponseTokens"
+                        id="charCreator_maxResponseTokens"
                         type="number"
                         class="text_pole"
                         min="1"
@@ -141,44 +142,153 @@
                         placeholder="Enter max response tokens"
                     />
                 </label>
+
+                <!-- Output Format -->
+                <label style="margin-top: 10px">
+                    Output Format
+                    <select
+                        id="charCreator_outputFormat"
+                        class="text_pole"
+                        title="Select the desired output format from the AI"
+                    >
+                        <option value="none">Plain Text</option>
+                        <option value="xml">XML</option>
+                        <option value="json">JSON</option>
+                    </select>
+                </label>
             </div>
 
             <div class="card">
-                <h3>Your Prompt</h3>
-                <select id="worldInfoRecommend_promptPreset" class="text_pole" title="Select a Prompt Preset"></select>
+                <h3>Additional Instructions</h3>
+                <select
+                    id="charCreator_promptPreset"
+                    class="text_pole"
+                    title="Select a Prompt Preset for additional instructions"
+                ></select>
                 <textarea
-                    id="worldInfoRecommend_prompt"
+                    id="charCreator_prompt"
                     class="text_pole textarea_compact"
-                    placeholder="e.g., 'Suggest entries for places {{user}} visited.' or 'Edit the coffee shop entry...'"
+                    placeholder="Add specific instructions here (e.g., 'Make the description sound mysterious', 'Focus on their childhood trauma for personality'). This applies to the next field you generate."
                     rows="4"
                 ></textarea>
-                <button id="worldInfoRecommend_sendPrompt" class="menu_button interactable">Send Prompt</button>
+                <!-- Maybe repurpose this button later or remove -->
+                <!-- <button id="charCreator_sendPrompt" class="menu_button interactable">Generate All (Experimental)</button> -->
             </div>
         </div>
 
+        <!-- Right Column: Character Fields -->
         <div class="wide-column">
             <div class="card">
-                <h3>Suggested Entries</h3>
-                <div class="actions">
-                    <button id="worldInfoRecommend_addAll" class="menu_button interactable">Add All</button>
-                    <button id="worldInfoRecommend_reset" class="menu_button interactable">Reset</button>
+                <h3>Character Fields</h3>
+
+                <!-- Name Field -->
+                <div class="character-field">
+                    <label for="charCreator_field_name">Name</label>
+                    <div class="field-container">
+                        <textarea id="charCreator_field_name" class="text_pole textarea_compact" rows="1"></textarea>
+                        <button class="menu_button generate-field-button" data-field="name" title="Generate Name">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </button>
+                    </div>
                 </div>
-                <div id="worldInfoRecommend_suggestedEntries"></div>
+
+                <!-- Description Field -->
+                <div class="character-field">
+                    <label for="charCreator_field_description">Description</label>
+                    <div class="field-container large-field">
+                        <textarea
+                            id="charCreator_field_description"
+                            class="text_pole textarea_compact"
+                            rows="5"
+                        ></textarea>
+                        <button
+                            class="menu_button generate-field-button"
+                            data-field="description"
+                            title="Generate Description"
+                        >
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Personality Field -->
+                <div class="character-field">
+                    <label for="charCreator_field_personality">Personality</label>
+                    <div class="field-container large-field">
+                        <textarea
+                            id="charCreator_field_personality"
+                            class="text_pole textarea_compact"
+                            rows="4"
+                        ></textarea>
+                        <button
+                            class="menu_button generate-field-button"
+                            data-field="personality"
+                            title="Generate Personality"
+                        >
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Scenario Field -->
+                <div class="character-field">
+                    <label for="charCreator_field_scenario">Scenario</label>
+                    <div class="field-container large-field">
+                        <textarea
+                            id="charCreator_field_scenario"
+                            class="text_pole textarea_compact"
+                            rows="3"
+                        ></textarea>
+                        <button
+                            class="menu_button generate-field-button"
+                            data-field="scenario"
+                            title="Generate Scenario"
+                        >
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- First Message Field -->
+                <div class="character-field">
+                    <label for="charCreator_field_first_mes">First Message</label>
+                    <div class="field-container large-field">
+                        <textarea
+                            id="charCreator_field_first_mes"
+                            class="text_pole textarea_compact"
+                            rows="3"
+                        ></textarea>
+                        <button
+                            class="menu_button generate-field-button"
+                            data-field="first_mes"
+                            title="Generate First Message"
+                        >
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Example Dialogue Field -->
+                <div class="character-field">
+                    <label for="charCreator_field_mes_example">Example Dialogue</label>
+                    <div class="field-container large-field">
+                        <textarea
+                            id="charCreator_field_mes_example"
+                            class="text_pole textarea_compact"
+                            rows="6"
+                        ></textarea>
+                        <button
+                            class="menu_button generate-field-button"
+                            data-field="mes_example"
+                            title="Generate Example Dialogue"
+                        >
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <template id="worldInfoRecommend_entryTemplate">
-        <div class="entry">
-            <div class="menu">
-                <select class="world-select text_pole"></select>
-                <button class="menu_button interactable add">Add</button>
-                <button class="menu_button interactable blacklist">Blacklist</button>
-                <button class="menu_button interactable remove">Remove</button>
-            </div>
-            <h4 class="comment">{{comment}}</h4>
-            <div class="key">{{key}}</div>
-            <p class="content">{{content}}</p>
-        </div>
-    </template>
+    <!-- No template needed for suggestions anymore -->
 </div>

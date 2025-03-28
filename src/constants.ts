@@ -1,106 +1,104 @@
-export const DEFAULT_ST_DESCRIPTION = `=== SILLYTAVERN===
+export const DEFAULT_CHAR_CARD_DESCRIPTION = `=======
 
-**SillyTavern** is a popular open-source front-end interface designed for interacting with AI language models. It's primarily used for role-playing, creative writing, and conversational experiences, offering a user-friendly platform to customize interactions with AI. Here's an overview:
-
-### Key Features:
-1. **AI Backend Compatibility**: Works with APIs like OpenAI (GPT), KoboldAI, Claude, or local models (via services like Text-generation-webui or Ollama).
-2. **Customization**:
-   - Create and import character cards (with personas, scenarios, and dialogue examples).
-   - Adjust model parameters (temperature, repetition penalties) for tailored responses.
-3. **Plugins & Extensions**: Adds features like text-to-speech, image generation, emotion recognition, and world-building tools.
-4. **Privacy**: Self-hosted locally, giving users control over data (unlike cloud-based services).
-
-### Use Cases:
-- Role-playing with AI characters.
-- Collaborative storytelling or creative writing.
-- Experimental AI interactions (users often share character templates and scripts in communities).
-
-### Requirements:
-- Technical setup involves installing Node.js, cloning the GitHub repo, and configuring API connections.
-- Requires access to an AI model backend (e.g., OpenAI API key or a locally hosted model).
-
-### Community & Ethics:
-- Active communities on platforms like GitHub and Reddit share guides, characters, and plugins.
-- Encourages responsible use, as the tool can generate unrestricted content depending on the AI backend.
-
-SillyTavern is not an AI itself but a flexible interface to enhance interactions with LLMs.
-
-=== WORLDINFO (LOREBOOKS) ===
-
-**World Info** (often called **Lorebooks**) is a feature used in AI-driven storytelling and role-playing platforms (like SillyTavern, NovelAI, KoboldAI, or Text-generation-webui) to help AI models maintain consistency in fictional worlds. It acts as a dynamic knowledge base that the AI references during interactions to avoid contradictions and keep track of key details.
+When creating a **character card** in SillyTavern, you can define a structured profile to guide the AI's behavior and ensure consistency in roleplay or storytelling. Below are the common fields and their purposes, based on community templates and best practices:
 
 ---
 
-### **What is World Info/Lorebooks?**
-- **A structured database**: Stores details about characters, locations, rules, events, or concepts in your fictional world.
-- **Contextual triggers**: Entries activate automatically when specific keywords or phrases appear in the conversation/story.
-- **Prevents "amnesia"**: Ensures the AI remembers critical lore without relying solely on its limited context window.
+### **Core Fields (Basic Profile)**
+1. **Name**
+   The character’s name (e.g., "Luna the Wizard" or "Detective Grey").
+
+2. **Description**
+   A concise overview of the character’s **appearance**, **personality**, and key traits. Example:
+   *"A stoic elf with silver hair, wearing a tattered cloak. She speaks cryptically and distrusts humans."*
+
+3. **Personality** (Optional, but recommended)
+   Explicitly outline traits, quirks, or motivations (e.g., "Sarcastic, loyal to allies, obsessed with ancient ruins").
+
+4. **Scenario**
+   Context for the interaction (e.g., "A haunted inn at midnight" or "First meeting in a dystopian city").
+
+5. **First Message**
+   The character’s opening line to set the tone (e.g., *"You shouldn’t be here... but since you are, tell me your name."*).
+
+6. **Example Dialogue**
+   Sample lines demonstrating the character’s speech style. Use quotes or asterisks for actions:
+   \`\`\`
+   *{{char}} narrows her eyes.* "You’re not from around here, are you?"
+   {{char}}: "Trust is earned. Prove yourself."
+   \`\`\`
 
 ---
 
-### **How It Works**
-1. **Create Entries**: Define elements (e.g., a character’s backstory, a magic system’s rules).
-2. **Set Triggers**: Link entries to keywords (e.g., mention "Dragonstone" → inject lore about that location).
-3. **Dynamic Injection**: When a trigger word appears in the chat/story, the relevant entry is temporarily added to the AI’s context.
+### **Advanced Fields (Customization)**
+
+7. **Alternate Greetings**
+    Multiple opening messages for varied scenarios (e.g., a cheerful vs. hostile introduction).
 
 ---
 
-### **Key Features**
-- **Hierarchy**: Organize entries into categories (e.g., factions, items, timelines).
-- **Priority**: Set which entries take precedence if multiple triggers occur.
-- **Cross-references**: Link entries to each other (e.g., a character entry references their home city).
-- **Formatting**: Use markdown, JSON, or plain text depending on the platform.
+### **Optional Extras**
+8. **Appearance Schema**
+    Detailed physical attributes (height, scars, clothing) in bullet points or JSON.
+
+9. **Relationships**
+    Define ties to other characters (e.g., "Rival: Captain Alden", "Ally: Mira the Healer").
+
+10. **Voice/Accent Notes**
+    Descriptions like "raspy voice" or "British accent" to influence text generation.
+
+11. **NSFW/SFW Toggles**
+    Flags to filter content intensity (if enabled in your SillyTavern setup).
 
 ---
 
-### **Example Lorebook Entry**
-\`\`\`plaintext
-Name: Dragonstone Citadel
-Triggers: Dragonstone, Citadel, Obsidian Fortress
-Content:
-  A volcanic fortress built from black obsidian. Home to the ancient Order of Flames,
-  who guard the Eternal Fire—a magical flame that grants visions of the future.
-  The citadel is rumored to be cursed, as its rulers never live past 40 years.
+### **Tips for Effective Character Cards**
+- **Avoid Overloading**: Keep descriptions concise but vivid. Too much detail can confuse the AI.
+- **Use Formatting**: Leverage \`*actions*\`, \`"quotes"\`, and line breaks for readability.
+- **Test Iteratively**: Adjust fields based on the AI’s output (e.g., tweak **Example Dialogue** if responses feel off).
+
+---
+
+### **Example Character Card Snippet**
+\`\`\`json
+{
+  "name": "Vex",
+  "description": "A rogue android with a cracked visor, programmed to question humanity.",
+  "personality": "Curious, cynical, secretly longs to feel emotions.",
+  "scenario": "Post-apocalyptic lab where humans experiment on androids.",
+  "first_message": "*Vex tilts their head, circuits humming.* 'Why do you fear what you create?'",
+  "example_dialogue": "{{user}}: Can you feel pain?\\n{{char}}: *Cold laugh.* 'Pain requires a soul. Do *you* have one?'"
+}
 \`\`\`
 
----
+=======`;
 
-### **Use Cases**
-1. **Complex Worldbuilding**: Track political factions, religions, or history.
-2. **Character Consistency**: Ensure the AI remembers a character’s motives, secrets, or relationships.
-3. **Magic/Science Systems**: Define rules (e.g., "Magic drains lifeforce" or "Robots cannot harm humans").
-4. **Plot Hooks**: Store hidden clues or foreshadowing for the AI to weave into the narrative.
-
----
-
-### **Tools Supporting Lorebooks**
-- **SillyTavern**: Integrates with lorebooks via extensions or prompts.
-- **NovelAI**: Has a built-in "Lorebook" feature with advanced triggers.
-- **KoboldAI/Text-generation-webui**: Use "world info" files or scripts.
-- **AIDungeon** (historically): Early adopter of world info, though less popular now.
+export const DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE = `{{#if characters}}
+## SELECTED CHARACTERS FOR CONTEXT
+{{#each characters}}
+### Character: {{this.name}} (ID: {{@key}})
+- **Description:** {{#if this.description}}{{this.description}}{{else}}*Not provided*{{/if}}
+- **Personality:** {{#if this.personality}}{{this.personality}}{{else}}*Not provided*{{/if}}
+- **Scenario:** {{#if this.scenario}}{{this.scenario}}{{else}}*Not provided*{{/if}}
+- **First Message:** {{#if this.first_mes}}{{this.first_mes}}{{else}}*Not provided*{{/if}}
+- **Example Dialogue:**
+  {{#if this.mes_example}}{{this.mes_example}}{{else}}*Not provided*{{/if}}
 
 ---
+{{/each}}
+{{/if}}`;
 
-### **Best Practices**
-- **Keep entries concise**: AI models process information best in short, clear snippets.
-- **Balance detail**: Too many entries can overwhelm the context window.
-- **Test triggers**: Ensure keywords are unique enough to avoid false activations.
-- **Update dynamically**: Add/remove entries as the story evolves.
+export const DEFAULT_XML_FORMAT_DESC = `You MUST provide your response wrapped ONLY in a single <response> XML tag.
+Example:
+<response>Generated content for the field goes here.</response>`;
 
-Lorebooks are essential for long-term storytelling with AI.`;
+export const DEFAULT_JSON_FORMAT_DESC = `You MUST provide your response as a JSON object with a single key "response" containing the generated content as a string.
+Example:
+{
+  "response": "Generated content for the field goes here."
+}`;
 
-export const DEFAULT_LOREBOOK_DEFINITION = `{{#each lorebooks}}
-  {{#if this.length}}
-## WORLD NAME: {{@key}}
-    {{#each this as |entry|}}
-      {{#unless entry.disable}}
-- (NAME: {{entry.comment}}) (ID: {{entry.uid}})
-Triggers: {{join entry.key ', '}}
-Content: {{entry.content}}
+export const DEFAULT_NONE_FORMAT_DESC = `You MUST provide ONLY the raw text content for the field, without any formatting, XML tags, JSON structure, or explanatory text. Just the content itself.`;
 
-      {{/unless}}
-    {{/each}}
-  {{/if}}
-{{/each}}`;
-
-export const DEFAULT_LOREBOOK_RULES = `- Don't suggest already existing or suggested entries.`;
+// No longer needed, but kept for reference if rules are reintroduced
+// export const DEFAULT_LOREBOOK_RULES = `- Don't suggest already existing or suggested entries.`;

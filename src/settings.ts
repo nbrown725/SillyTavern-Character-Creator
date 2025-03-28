@@ -1,19 +1,26 @@
 import { ExtensionSettingsManager } from 'sillytavern-utils-lib';
-import { DEFAULT_ST_DESCRIPTION, DEFAULT_LOREBOOK_DEFINITION, DEFAULT_LOREBOOK_RULES } from './constants.js';
+import {
+  DEFAULT_CHAR_CARD_DESCRIPTION,
+  DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
+  DEFAULT_XML_FORMAT_DESC,
+  DEFAULT_JSON_FORMAT_DESC,
+  DEFAULT_NONE_FORMAT_DESC,
+} from './constants.js';
 import { ContextToSend } from './generate.js';
-import { DEFAULT_XML_DESCRIPTION } from './xml.js';
 
-export const extensionName = 'SillyTavern-WorldInfo-Recommender';
-export const VERSION = '0.1.1';
-export const FORMAT_VERSION = 'F_1.0';
+export const extensionName = 'SillyTavern-Character-Creator'; // Updated Name
+export const VERSION = '0.1.0'; // Initial version
+export const FORMAT_VERSION = 'F_1.0'; // Data format version
 
 export const KEYS = {
-  EXTENSION: 'worldInfoRecommender',
+  EXTENSION: 'charCreatorAssistant', // Updated key
 } as const;
 
 export interface PromptPreset {
   content: string;
 }
+
+export type OutputFormat = 'xml' | 'json' | 'none';
 
 export interface ExtensionSettings {
   version: string;
@@ -22,15 +29,24 @@ export interface ExtensionSettings {
   maxContextType: 'profile' | 'sampler' | 'custom';
   maxContextValue: number;
   maxResponseToken: number;
+  outputFormat: OutputFormat;
   contextToSend: ContextToSend;
-  stWorldInfoPrompt: string;
-  usingDefaultStWorldInfoPrompt: boolean;
-  lorebookDefinitionPrompt: string;
-  usingDefaultLorebookDefinitionPrompt: boolean;
-  lorebookRulesPrompt: string;
-  usingDefaultLorebookRulesPrompt: boolean;
-  responseRulesPrompt: string;
-  usingDefaultResponseRulesPrompt: boolean;
+
+  // Character Card Prompts
+  stCharCardPrompt: string;
+  usingDefaultStCharCardPrompt: boolean;
+  charCardDefinitionPrompt: string; // Handlebars template
+  usingDefaultCharCardDefinitionPrompt: boolean;
+
+  // Format Descriptions
+  xmlFormatDesc: string;
+  usingDefaultXmlFormatDesc: boolean;
+  jsonFormatDesc: string;
+  usingDefaultJsonFormatDesc: boolean;
+  noneFormatDesc: string; // For plain text
+  usingDefaultNoneFormatDesc: boolean;
+
+  // Generic Prompt Presets
   promptPreset: string;
   promptPresets: Record<string, PromptPreset>;
 }
@@ -42,10 +58,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   maxContextType: 'profile',
   maxContextValue: 16384,
   maxResponseToken: 1024,
+  outputFormat: 'none', // Default to plain text
   contextToSend: {
-    stDescription: true,
+    stDescription: true, // Description of ST/CharCard
     messages: {
-      type: 'all',
+      type: 'last', // Default to last 10 messages
       first: 10,
       last: 10,
       range: {
@@ -53,23 +70,31 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         end: 10,
       },
     },
-    charCard: true,
-    authorNote: true,
-    worldInfo: true,
-    suggestedEntries: true,
+    charCard: true, // Include selected character context
+    existingFields: true, // Include current field values
   },
-  stWorldInfoPrompt: DEFAULT_ST_DESCRIPTION,
-  usingDefaultStWorldInfoPrompt: true,
-  lorebookDefinitionPrompt: DEFAULT_LOREBOOK_DEFINITION,
-  usingDefaultLorebookDefinitionPrompt: true,
-  lorebookRulesPrompt: DEFAULT_LOREBOOK_RULES,
-  usingDefaultLorebookRulesPrompt: true,
-  responseRulesPrompt: DEFAULT_XML_DESCRIPTION,
-  usingDefaultResponseRulesPrompt: true,
+
+  // Character Card Prompts
+  stCharCardPrompt: DEFAULT_CHAR_CARD_DESCRIPTION,
+  usingDefaultStCharCardPrompt: true,
+  charCardDefinitionPrompt: DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
+  usingDefaultCharCardDefinitionPrompt: true,
+
+  // Format Descriptions
+  xmlFormatDesc: DEFAULT_XML_FORMAT_DESC,
+  usingDefaultXmlFormatDesc: true,
+  jsonFormatDesc: DEFAULT_JSON_FORMAT_DESC,
+  usingDefaultJsonFormatDesc: true,
+  noneFormatDesc: DEFAULT_NONE_FORMAT_DESC,
+  usingDefaultNoneFormatDesc: true,
+
+  // Generic Prompt Presets
   promptPreset: 'default',
   promptPresets: {
     default: {
-      content: '',
+      // Default prompt can be more specific to character creation
+      content:
+        'Generate the field content based on the chat history and existing character details. Be creative but consistent.',
     },
   },
 };

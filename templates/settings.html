@@ -1,54 +1,91 @@
-<div class="worldInfoRecommender_settings">
+<div class="charCreatorAssistant_settings">
+    <!-- Updated class -->
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b>World Info Recommender Settings</b>
+            <b>Character Creator Assistant Settings</b>
+            <!-- Updated title -->
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-            <div class="stWorldInfoPrompt">
+            <!-- ST/Character Card Definition -->
+            <div class="stCharCardPrompt">
                 <div class="title_restorable">
-                    <span>ST/World Info Definition</span>
+                    <span>ST/Character Card Definition</span>
                     <button
                         class="menu_button fa-solid fa-undo interactable restore_default"
-                        data-i18n="[title]Restore default"
                         title="Restore default"
                     ></button>
                 </div>
-                <textarea class="text_pole textarea_compact" placeholder="ST/World Info Definition" rows="4"></textarea>
+                <textarea
+                    class="text_pole textarea_compact"
+                    placeholder="ST/Character Card Definition"
+                    rows="4"
+                ></textarea>
             </div>
-            <div class="lorebookDefinitionPrompt" style="margin-top: 10px">
+
+            <!-- Character Card Definition Template -->
+            <div class="charCardDefinitionPrompt" style="margin-top: 10px">
                 <div class="title_restorable">
-                    <span>Lorebook Definition</span>
+                    <span title="Handlebars template for providing character context to the AI"
+                        >Character Definition Template (Handlebars)</span
+                    >
                     <button
                         class="menu_button fa-solid fa-undo interactable restore_default"
-                        data-i18n="[title]Restore default"
                         title="Restore default"
                     ></button>
                 </div>
-                <textarea class="text_pole textarea_compact" placeholder="Response Rules" rows="4"></textarea>
+                <textarea
+                    class="text_pole textarea_compact"
+                    placeholder="Character Definition Template"
+                    rows="4"
+                ></textarea>
             </div>
-            <div class="lorebookRulesPrompt" style="margin-top: 10px">
+
+            <!-- XML Format Description -->
+            <div class="xmlFormatDesc" style="margin-top: 10px">
                 <div class="title_restorable">
-                    <span>Lorebook Rules</span>
+                    <span title="Instructions given to the AI when XML format is selected">XML Format Description</span>
                     <button
                         class="menu_button fa-solid fa-undo interactable restore_default"
-                        data-i18n="[title]Restore default"
                         title="Restore default"
                     ></button>
                 </div>
-                <textarea class="text_pole textarea_compact" placeholder="Response Rules" rows="4"></textarea>
+                <textarea class="text_pole textarea_compact" placeholder="XML Format Description" rows="3"></textarea>
             </div>
-            <div class="responseRulesPrompt" style="margin-top: 10px">
+
+            <!-- JSON Format Description -->
+            <div class="jsonFormatDesc" style="margin-top: 10px">
                 <div class="title_restorable">
-                    <span title="Don't touch XML parts unless you know what you're doing">Response Rules</span>
+                    <span title="Instructions given to the AI when JSON format is selected"
+                        >JSON Format Description</span
+                    >
                     <button
                         class="menu_button fa-solid fa-undo interactable restore_default"
-                        data-i18n="[title]Restore default"
                         title="Restore default"
                     ></button>
                 </div>
-                <textarea class="text_pole textarea_compact" placeholder="Response Rules" rows="4"></textarea>
+                <textarea class="text_pole textarea_compact" placeholder="JSON Format Description" rows="4"></textarea>
             </div>
+
+            <!-- Plain Text Format Description -->
+            <div class="noneFormatDesc" style="margin-top: 10px">
+                <div class="title_restorable">
+                    <span title="Instructions given to the AI when Plain Text format is selected"
+                        >Plain Text Format Description</span
+                    >
+                    <button
+                        class="menu_button fa-solid fa-undo interactable restore_default"
+                        title="Restore default"
+                    ></button>
+                </div>
+                <textarea
+                    class="text_pole textarea_compact"
+                    placeholder="Plain Text Format Description"
+                    rows="3"
+                ></textarea>
+            </div>
+
+            <!-- Removed Lorebook Rules and Response Rules (replaced by format descriptions) -->
         </div>
     </div>
 </div>
