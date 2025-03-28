@@ -9,11 +9,11 @@
 }
 
 /* Ensure popup content is scrollable */
-.popup-content:has(#charCreatorAssistantPopup) {
+.popup-content:has(#charCreatorPopup) {
     overflow-y: auto;
 }
 
-#charCreatorAssistantPopup {
+#charCreatorPopup {
     padding: 20px;
     color: var(--SmartThemeBodyColor);
     font-family: var(--mainFontFamily);
@@ -116,12 +116,6 @@
         #rangeX {
             margin-top: 5px;
         }
-    }
-
-    /* Character selection dropdown */
-    #charCreator_charCardContainer {
-        margin-top: 10px;
-        padding-left: 15px;
     }
 
 

@@ -1,21 +1,12 @@
 import { buildFancyDropdown, buildPresetSelect, BuildPromptOptions, DropdownItem } from 'sillytavern-utils-lib';
 import {
-  groups,
   selected_group,
   st_echo, // Use st_echo for user feedback
   st_getCharaFilename, // Useful for identifying current context
   this_chid,
+  world_names,
 } from 'sillytavern-utils-lib/config';
 import { POPUP_TYPE } from 'sillytavern-utils-lib/types/popup';
-import {
-  DEFAULT_CHAR_CARD_DESCRIPTION,
-  DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
-  DEFAULT_XML_FORMAT_DESC,
-  DEFAULT_JSON_FORMAT_DESC,
-  DEFAULT_NONE_FORMAT_DESC,
-} from './constants.js';
-import { parseResponse } from './parsers.js'; // Updated parser import
-import showdown from 'showdown'; // Keep for potential markdown display if needed
 
 import {
   globalContext,
@@ -31,6 +22,7 @@ import {
 import { Handlebars } from '../../../../../lib.js';
 import { extensionName, settingsManager, ExtensionSettings, OutputFormat } from './settings.js';
 import { Character } from 'sillytavern-utils-lib/types';
+import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 
 // Ensure Handlebars helpers are registered (if needed)
 if (!Handlebars.helpers['join']) {
@@ -59,7 +51,7 @@ async function handleSettingsUI() {
   );
   $('#extensions_settings').append(settingsHtml);
 
-  const settingsContainer = document.querySelector('.charCreatorAssistant_settings');
+  const settingsContainer = document.querySelector('.charCreator_settings');
   if (!settingsContainer) return;
 
   const settings = settingsManager.getSettings();
@@ -83,7 +75,7 @@ async function handleSettingsUI() {
     restoreButton.addEventListener('click', async () => {
       const confirm = await globalContext.Popup.show.confirm(
         `Are you sure you want to restore the default for "${container.querySelector('span')?.textContent}"?`,
-        'Character Creator Assistant',
+        'Character Creator',
       );
       if (confirm) {
         textarea.value = defaultText;
@@ -112,6 +104,12 @@ async function handleSettingsUI() {
     'DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE',
     'usingDefaultCharCardDefinitionPrompt',
   );
+  setupPromptArea(
+    'lorebookDefinitionPrompt',
+    'lorebookDefinitionPrompt',
+    'DEFAULT_LOREBOOK_DEFINITION',
+    'usingDefaultLorebookDefinitionPrompt',
+  );
   setupPromptArea('xmlFormatDesc', 'xmlFormatDesc', 'DEFAULT_XML_FORMAT_DESC', 'usingDefaultXmlFormatDesc');
   setupPromptArea('jsonFormatDesc', 'jsonFormatDesc', 'DEFAULT_JSON_FORMAT_DESC', 'usingDefaultJsonFormatDesc');
   setupPromptArea('noneFormatDesc', 'noneFormatDesc', 'DEFAULT_NONE_FORMAT_DESC', 'usingDefaultNoneFormatDesc');
@@ -120,12 +118,12 @@ async function handleSettingsUI() {
 async function handlePopupUI() {
   // Add popup icon to the UI
   // Choose appropriate location - e.g., next to send button or in character header
-  const iconHtml = `<div class="menu_button fa-solid fa-user-astronaut interactable charCreatorAssistant-icon" title="Character Creator Assistant"></div>`;
+  const iconHtml = `<div class="menu_button fa-solid fa-user-astronaut interactable charCreator-icon" title="Character Creator"></div>`;
   // Example: Add to chat input area
   $('.form_create_bottom_buttons_block').prepend(iconHtml);
   $('#GroupFavDelOkBack').prepend(iconHtml); // Add to group management too if needed
 
-  const popupIcons = document.querySelectorAll('.charCreatorAssistant-icon');
+  const popupIcons = document.querySelectorAll('.charCreator-icon');
   // setPopupIcon(popupIcons[0]); // If using commands.js helper
 
   popupIcons.forEach((icon) => {
@@ -139,7 +137,7 @@ async function handlePopupUI() {
         wide: true, // Make popup wider
       });
 
-      const popupContainer = document.getElementById('charCreatorAssistantPopup');
+      const popupContainer = document.getElementById('charCreatorPopup');
       if (!popupContainer) return;
 
       const settings = settingsManager.getSettings();
@@ -148,7 +146,7 @@ async function handlePopupUI() {
 
       // Connection Profile Dropdown
       globalContext.ConnectionManagerRequestService.handleDropdown(
-        '#charCreatorAssistantPopup #charCreator_connectionProfile',
+        '#charCreatorPopup #charCreator_connectionProfile',
         settings.profileId,
         (profile: any) => {
           settings.profileId = profile?.id ?? '';
@@ -159,6 +157,9 @@ async function handlePopupUI() {
       // Context Sending Options
       const stDescriptionCheckbox = popupContainer.querySelector('#charCreator_stDescription') as HTMLInputElement;
       const includeCharsCheckbox = popupContainer.querySelector('#charCreator_includeChars') as HTMLInputElement;
+      const includeWorldInfoCheckbox = popupContainer.querySelector(
+        '#charCreator_includeWorldInfo',
+      ) as HTMLInputElement;
       const includeExistingFieldsCheckbox = popupContainer.querySelector(
         '#charCreator_includeExistingFields',
       ) as HTMLInputElement;
@@ -173,6 +174,10 @@ async function handlePopupUI() {
       });
       includeCharsCheckbox.addEventListener('change', () => {
         settings.contextToSend.charCard = includeCharsCheckbox.checked;
+        settingsManager.saveSettings();
+      });
+      includeWorldInfoCheckbox.addEventListener('change', () => {
+        settings.contextToSend.worldInfo = includeWorldInfoCheckbox.checked;
         settingsManager.saveSettings();
       });
       includeExistingFieldsCheckbox.addEventListener('change', () => {
@@ -270,10 +275,13 @@ async function handlePopupUI() {
 
       // --- Setup Character Context ---
       const avatar = this_chid ? st_getCharaFilename(this_chid) : selected_group;
-      const sessionKey = `charCreatorAssistant_${avatar || 'default'}`;
+      const sessionKey = `charCreator_${avatar || 'default'}`;
       const activeSession: Session = JSON.parse(localStorage.getItem(sessionKey) ?? '{}');
       if (!activeSession.selectedCharacterIndexes) {
         activeSession.selectedCharacterIndexes = this_chid ? [this_chid] : []; // Default to current char if not group
+      }
+      if (!activeSession.selectedWorldNames) {
+        activeSession.selectedWorldNames = []; // Default to none selected
       }
       const saveSession = () => {
         localStorage.setItem(sessionKey, JSON.stringify(activeSession));
@@ -301,9 +309,33 @@ async function handlePopupUI() {
         });
       }
 
+      // "Lorebooks to Include" Dropdown
+      const worldInfoSelectorContainer = popupContainer.querySelector('#charCreator_worldInfoSelector');
+      let allWorldNames: string[] = structuredClone(world_names);
+      try {
+        if (worldInfoSelectorContainer && allWorldNames.length > 0) {
+          buildFancyDropdown('#charCreator_worldInfoSelector', {
+            initialList: allWorldNames, // List of names
+            initialValues: activeSession.selectedWorldNames, // Use stored names
+            placeholderText: 'Select lorebooks for context...',
+            onSelectChange: (_previousValues: string[], newValues: string[]) => {
+              activeSession.selectedWorldNames = newValues;
+              saveSession();
+            },
+          });
+        } else if (worldInfoSelectorContainer) {
+          worldInfoSelectorContainer.textContent = 'No active lorebooks found.';
+        }
+      } catch (error) {
+        console.error('Failed to get active world info:', error);
+        if (worldInfoSelectorContainer) {
+          worldInfoSelectorContainer.textContent = 'Error loading lorebooks.';
+        }
+      }
+
       // Additional Instructions / Prompt Preset
       const promptTextarea = popupContainer.querySelector('#charCreator_prompt') as HTMLTextAreaElement;
-      buildPresetSelect('#charCreatorAssistantPopup #charCreator_promptPreset', {
+      buildPresetSelect('#charCreatorPopup #charCreator_promptPreset', {
         label: 'instructionPreset', // Unique label
         initialValue: settings.promptPreset,
         initialList: Object.keys(settings.promptPresets),
@@ -461,6 +493,16 @@ async function handlePopupUI() {
                   break;
               }
 
+              const entriesGroupByWorldName: Record<string, WIEntry[]> = {};
+              world_names
+                .filter((name: string) => activeSession.selectedWorldNames.includes(name))
+                .forEach(async (name: string) => {
+                  const worldInfo = await globalContext.loadWorldInfo(name);
+                  if (worldInfo) {
+                    entriesGroupByWorldName[name] = Object.values(worldInfo.entries);
+                  }
+                });
+
               // Call generation function
               const generatedContent = await runCharacterFieldGeneration({
                 profileId: settings.profileId,
@@ -469,9 +511,11 @@ async function handlePopupUI() {
                 contextToSend: settings.contextToSend,
                 session: activeSession, // Pass current session state
                 allCharacters: context.characters, // Pass all characters
+                entriesGroupByWorldName: entriesGroupByWorldName,
                 promptSettings: {
                   stCharCardPrompt: settings.stCharCardPrompt,
                   charCardDefinitionPrompt: settings.charCardDefinitionPrompt,
+                  lorebookDefinitionPrompt: settings.lorebookDefinitionPrompt,
                   formatDescription: formatDescription,
                 },
                 maxResponseToken: settings.maxResponseToken,

@@ -1,9 +1,7 @@
-<div class="charCreatorAssistant_settings">
-    <!-- Updated class -->
+<div class="charCreator_settings">
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b>Character Creator Assistant Settings</b>
-            <!-- Updated title -->
+            <b>Character Creator Settings</b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
@@ -37,6 +35,24 @@
                 <textarea
                     class="text_pole textarea_compact"
                     placeholder="Character Definition Template"
+                    rows="4"
+                ></textarea>
+            </div>
+
+            <!-- Lorebook Definition Template --->
+            <div class="lorebookDefinitionPrompt" style="margin-top: 10px">
+                <div class="title_restorable">
+                    <span title="Handlebars template for providing lorebook context to the AI"
+                        >Lorebook Definition Template (Handlebars)</span
+                    >
+                    <button
+                        class="menu_button fa-solid fa-undo interactable restore_default"
+                        title="Restore default"
+                    ></button>
+                </div>
+                <textarea
+                    class="text_pole textarea_compact"
+                    placeholder="Lorebook Definition Template"
                     rows="4"
                 ></textarea>
             </div>

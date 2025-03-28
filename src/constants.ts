@@ -100,5 +100,16 @@ Example:
 
 export const DEFAULT_NONE_FORMAT_DESC = `You MUST provide ONLY the raw text content for the field, without any formatting, XML tags, JSON structure, or explanatory text. Just the content itself.`;
 
-// No longer needed, but kept for reference if rules are reintroduced
-// export const DEFAULT_LOREBOOK_RULES = `- Don't suggest already existing or suggested entries.`;
+export const DEFAULT_LOREBOOK_DEFINITION = `{{#each lorebooks}}
+  {{#if this.length}}
+## WORLD NAME: {{@key}}
+    {{#each this as |entry|}}
+      {{#unless entry.disable}}
+- (NAME: {{entry.comment}}) (ID: {{entry.uid}})
+Triggers: {{#if entry.key}}{{join entry.key ', '}}{{else}}*No triggers*{{/if}}
+Content: {{#if entry.content}}{{entry.content}}{{else}}*No content*{{/if}}
+
+      {{/unless}}
+    {{/each}}
+  {{/if}}
+{{/each}}`;

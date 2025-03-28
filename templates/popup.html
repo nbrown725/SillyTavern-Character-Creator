@@ -1,5 +1,5 @@
-<div id="charCreatorAssistantPopup">
-    <h2>Character Creator Assistant</h2>
+<div id="charCreatorPopup">
+    <h2>Character Creator</h2>
     <div class="container">
         <!-- Left Column: Settings & Context -->
         <div class="column">
@@ -89,22 +89,20 @@
                         <div id="charCreator_characterSelector"></div>
                     </div>
 
+                    <!-- Include World Info Context -->
+                    <label class="checkbox_label" for="charCreator_includeWorldInfo" style="margin-top: 8px">
+                        <input type="checkbox" id="charCreator_includeWorldInfo" />
+                        Include Selected World Info (Lorebooks)
+                    </label>
+                    <div id="charCreator_worldInfoIncludeContainer" style="margin-top: 5px; padding-left: 15px">
+                        <div id="charCreator_worldInfoSelector"></div>
+                    </div>
+
                     <!-- Include Existing Fields -->
                     <label class="checkbox_label" for="charCreator_includeExistingFields">
                         <input type="checkbox" id="charCreator_includeExistingFields" />
                         Include Existing Field Content
                     </label>
-
-                    <!-- Group Character Card Selection (Only shows in group chat) -->
-                    <div id="charCreator_charCardContainer" style="display: none; margin-top: 10px">
-                        <h4>Target Character (for Persona)</h4>
-                        <select
-                            id="charCreator_charCardSelect"
-                            class="text_pole"
-                            title="Select character persona to use (relevant in group chats)."
-                        ></select>
-                        <small>Only used for setting the main persona context if needed.</small>
-                    </div>
                 </div>
             </div>
 

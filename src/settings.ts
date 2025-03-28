@@ -2,18 +2,19 @@ import { ExtensionSettingsManager } from 'sillytavern-utils-lib';
 import {
   DEFAULT_CHAR_CARD_DESCRIPTION,
   DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
+  DEFAULT_LOREBOOK_DEFINITION,
   DEFAULT_XML_FORMAT_DESC,
   DEFAULT_JSON_FORMAT_DESC,
   DEFAULT_NONE_FORMAT_DESC,
 } from './constants.js';
 import { ContextToSend } from './generate.js';
 
-export const extensionName = 'SillyTavern-Character-Creator'; // Updated Name
+export const extensionName = 'SillyTavern-Character-Creator';
 export const VERSION = '0.1.0'; // Initial version
 export const FORMAT_VERSION = 'F_1.0'; // Data format version
 
 export const KEYS = {
-  EXTENSION: 'charCreatorAssistant', // Updated key
+  EXTENSION: 'charCreator',
 } as const;
 
 export interface PromptPreset {
@@ -37,6 +38,10 @@ export interface ExtensionSettings {
   usingDefaultStCharCardPrompt: boolean;
   charCardDefinitionPrompt: string; // Handlebars template
   usingDefaultCharCardDefinitionPrompt: boolean;
+
+  // Lorebook Prompt
+  lorebookDefinitionPrompt: string;
+  usingDefaultLorebookDefinitionPrompt: boolean;
 
   // Format Descriptions
   xmlFormatDesc: string;
@@ -72,6 +77,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     },
     charCard: true, // Include selected character context
     existingFields: true, // Include current field values
+    worldInfo: true,
   },
 
   // Character Card Prompts
@@ -79,6 +85,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   usingDefaultStCharCardPrompt: true,
   charCardDefinitionPrompt: DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
   usingDefaultCharCardDefinitionPrompt: true,
+
+  // Lorebook Prompt
+  lorebookDefinitionPrompt: DEFAULT_LOREBOOK_DEFINITION,
+  usingDefaultLorebookDefinitionPrompt: true,
 
   // Format Descriptions
   xmlFormatDesc: DEFAULT_XML_FORMAT_DESC,

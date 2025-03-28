@@ -5,6 +5,7 @@ import { Character } from 'sillytavern-utils-lib/types'; // Assuming Character t
 
 // @ts-ignore
 import { Handlebars } from '../../../../../lib.js';
+import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 // @ts-ignore - Access global context
 export const globalContext = SillyTavern.getContext();
 
@@ -22,7 +23,7 @@ export const CHARACTER_FIELDS: CharacterFieldName[] = [
 
 export interface Session {
   selectedCharacterIndexes: string[]; // Store IDs of characters selected for context
-  // Removed suggestedEntries, blackListedEntries
+  selectedWorldNames: string[];
 }
 
 export interface ContextToSend {
@@ -38,7 +39,7 @@ export interface ContextToSend {
   };
   charCard: boolean; // Whether to include selected characters' data
   existingFields: boolean; // Whether to include current values of fields being edited
-  // Removed authorNote, worldInfo
+  worldInfo: boolean;
 }
 
 export interface RunCharacterFieldGenerationParams {
@@ -48,9 +49,11 @@ export interface RunCharacterFieldGenerationParams {
   contextToSend: ContextToSend;
   session: Session;
   allCharacters: Character[]; // Pass the full characters array
+  entriesGroupByWorldName: Record<string, WIEntry[]>;
   promptSettings: {
     stCharCardPrompt: string;
     charCardDefinitionPrompt: string; // Handlebars template for defining characters
+    lorebookDefinitionPrompt: string;
     formatDescription: string; // Instructions for XML/JSON/None
   };
   maxResponseToken: number;
@@ -66,6 +69,7 @@ export async function runCharacterFieldGeneration({
   contextToSend,
   session,
   allCharacters,
+  entriesGroupByWorldName,
   promptSettings,
   maxResponseToken,
   targetField,
@@ -131,8 +135,33 @@ export async function runCharacterFieldGeneration({
       });
     }
   }
+  // 4. Add Definitions of Selected Lorebooks (World Info)
+  if (contextToSend.worldInfo && session.selectedWorldNames.length > 0) {
+    try {
+      const template = Handlebars.compile(promptSettings.lorebookDefinitionPrompt, { noEscape: true });
+      const lorebooksData: Record<string, WIEntry[]> = {};
+      Object.entries(entriesGroupByWorldName)
+        .filter(([worldName, entries]) => entries.length > 0 && session.selectedWorldNames.includes(worldName))
+        .forEach(([worldName, entries]) => {
+          lorebooksData[worldName] = entries;
+        });
 
-  // 4. Add Current Field Values (if enabled)
+      if (Object.keys(lorebooksData).length > 0) {
+        const lorebookPrompt = template({ lorebooks: lorebooksData });
+        if (lorebookPrompt) {
+          messages.push({
+            role: 'system',
+            content: `=== CONTEXT FROM SELECTED LOREBOOKS (WORLD INFO) ===\n${lorebookPrompt}`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error compiling or executing Handlebars template for lorebook definitions:', error);
+      messages.push({ role: 'system', content: 'Error: Could not generate lorebook definitions for context.' });
+    }
+  }
+
+  // 5. Add Current Field Values (if enabled)
   if (contextToSend.existingFields && Object.keys(currentFieldValues).length > 0) {
     let existingFieldsPrompt = '=== CURRENT CHARACTER FIELD VALUES ===\n';
     for (const field of CHARACTER_FIELDS) {
@@ -148,18 +177,16 @@ export async function runCharacterFieldGeneration({
     });
   }
 
-  // 5. Add Output Format Instructions
+  // 6. Add Output Format Instructions
   messages.push({
     role: 'system',
     content: `=== RESPONSE FORMAT INSTRUCTIONS ===\n${promptSettings.formatDescription}`,
   });
 
-  // 6. Construct and Add Final User Task
+  // 7. Construct and Add Final User Task
   // Basic task description
   let taskDescription = `Your task is to generate the content for the "${targetField}" field of a character card.`;
-  // Add constraints based on context
-  taskDescription += ` Base your response on the chat history, persona (if provided), existing field values (if provided), and context from other characters (if provided).`;
-  // Add user's specific instructions/prompt
+  taskDescription += ` Base your response on the chat history, persona (if provided), existing field values (if provided), context from other characters (if provided), and context from relevant lorebooks (if provided).`;
   if (processedUserPrompt) {
     taskDescription += `\n\nFollow these specific instructions: ${processedUserPrompt}`;
   }
@@ -179,7 +206,7 @@ export async function runCharacterFieldGeneration({
 
   // console.log("Received raw content:", response.content); // For debugging
 
-  // 7. Parse the response based on the expected format
+  // 8. Parse the response based on the expected format
   const parsedContent = parseResponse(response.content, outputFormat);
 
   return parsedContent;
