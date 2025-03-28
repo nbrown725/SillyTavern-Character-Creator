@@ -274,8 +274,7 @@ async function handlePopupUI() {
       });
 
       // --- Setup Character Context ---
-      const avatar = this_chid ? st_getCharaFilename(this_chid) : selected_group;
-      const sessionKey = `charCreator_${avatar || 'default'}`;
+      const sessionKey = `charCreator`;
       const activeSession: Session = JSON.parse(localStorage.getItem(sessionKey) ?? '{}');
       if (!activeSession.selectedCharacterIndexes) {
         activeSession.selectedCharacterIndexes = this_chid ? [this_chid] : []; // Default to current char if not group
@@ -283,6 +282,15 @@ async function handlePopupUI() {
       if (!activeSession.selectedWorldNames) {
         activeSession.selectedWorldNames = []; // Default to none selected
       }
+      if (!activeSession.fields) {
+        // @ts-ignore
+        activeSession.fields = {};
+      }
+      CHARACTER_FIELDS.forEach((field) => {
+        if (!activeSession.fields[field]) {
+          activeSession.fields[field] = '';
+        }
+      });
       const saveSession = () => {
         localStorage.setItem(sessionKey, JSON.stringify(activeSession));
       };
@@ -538,6 +546,13 @@ async function handlePopupUI() {
             }
           });
         }
+      });
+      Object.entries(fieldTextareas).forEach(([fieldName, textarea]) => {
+        textarea.value = activeSession.fields[fieldName as CharacterFieldName] || '';
+        textarea.addEventListener('change', () => {
+          activeSession.fields[fieldName as CharacterFieldName] = textarea.value;
+          saveSession();
+        });
       });
     });
   });

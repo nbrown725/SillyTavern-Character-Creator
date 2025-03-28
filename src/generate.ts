@@ -24,6 +24,7 @@ export const CHARACTER_FIELDS: CharacterFieldName[] = [
 export interface Session {
   selectedCharacterIndexes: string[]; // Store IDs of characters selected for context
   selectedWorldNames: string[];
+  fields: Record<CharacterFieldName, string>;
 }
 
 export interface ContextToSend {
