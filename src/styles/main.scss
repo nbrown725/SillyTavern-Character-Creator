@@ -14,7 +14,6 @@
 }
 
 #charCreatorPopup {
-    padding: 20px;
     color: var(--SmartThemeBodyColor);
     font-family: var(--mainFontFamily);
     max-width: 1200px;
@@ -54,7 +53,7 @@
     }
 
     .column {
-        width: 35%;
+        width: 30%;
         /* Adjusted width */
         display: flex;
         flex-direction: column;
@@ -66,7 +65,7 @@
     }
 
     .wide-column {
-        width: 65%;
+        width: 70%;
         /* Adjusted width */
         display: flex;
         flex-direction: column;
@@ -112,8 +111,6 @@
     .message-options {
         padding-left: 20px;
         border-left: 2px solid var(--SmartThemeBorderColor);
-        padding-top: 10px;
-        padding-bottom: 10px;
         margin-left: 5px;
 
         h4 {
