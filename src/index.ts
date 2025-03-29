@@ -196,6 +196,7 @@ async function handlePopupUI() {
       });
 
       // Message Options Setup
+      const messageOptionsContainer = popupContainer.querySelector('.message-options') as HTMLDivElement;
       const messageTypeSelect = popupContainer.querySelector('#charCreator_messageType') as HTMLSelectElement;
       const firstXDiv = popupContainer.querySelector('#charCreator_firstX') as HTMLElement;
       const lastXDiv = popupContainer.querySelector('#charCreator_lastX') as HTMLElement;
@@ -217,6 +218,9 @@ async function handlePopupUI() {
         rangeXDiv.style.display = type === 'range' ? 'block' : 'none';
       };
       updateMessageInputVisibility(messageTypeSelect.value);
+      if (settings.contextToSend.messages.type === 'none' && this_chid === undefined && !selected_group) {
+        messageOptionsContainer.style.display = 'none';
+      }
 
       messageTypeSelect.addEventListener('change', () => {
         const type = messageTypeSelect.value as ContextToSend['messages']['type'];
@@ -680,6 +684,9 @@ async function handlePopupUI() {
                 case 'all':
                 default:
                   break;
+              }
+              if (this_chid === undefined && !selected_group) {
+                buildPromptOptions.messageIndexesBetween = { start: -1, end: -1 };
               }
 
               let formatDescription = '';
