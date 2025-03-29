@@ -778,8 +778,7 @@ function main() {
 }
 
 if (!stagingCheck()) {
-  console.error(`[${extensionName}] Error: Required SillyTavern functions not found. Make sure ST is up-to-date.`);
-  st_echo('error', `[${extensionName}] Initialization failed. Please ensure SillyTavern is updated.`);
+  st_echo('error', `[${extensionName}] Make sure you are on staging branch and staging is updated.`);
 } else {
   settingsManager
     .initializeSettings()
