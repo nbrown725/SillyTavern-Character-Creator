@@ -114,7 +114,7 @@ Teaches the AI the character’s **speech patterns**, **formatting preferences**
 export const DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE = `{{#if characters}}
 ## SELECTED CHARACTERS FOR CONTEXT
 {{#each characters}}
-### Character: {{this.name}} (ID: {{@key}})
+### Character: {{this.name}}
 - **Description:** {{#if this.description}}{{this.description}}{{else}}*Not provided*{{/if}}
 - **Personality:** {{#if this.personality}}{{this.personality}}{{else}}*Not provided*{{/if}}
 - **Scenario:** {{#if this.scenario}}{{this.scenario}}{{else}}*Not provided*{{/if}}

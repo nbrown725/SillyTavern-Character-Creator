@@ -1,0 +1,286 @@
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Ensure popup content is scrollable */
+.popup-content:has(#charCreatorPopup) {
+  overflow-y: auto;
+}
+
+#charCreatorPopup {
+  color: var(--SmartThemeBodyColor);
+  font-family: var(--mainFontFamily);
+  max-width: 1200px;
+  /* Increased max-width for wider layout */
+  margin: 0 auto;
+  font-size: var(--mainFontSize);
+  /* Context Sending Options */
+  /* Message inclusion options */
+  /* Styling for the Character/World Info selector containers */
+  /* Style for the "X items selected" display */
+  /* Max Context / Tokens */
+  /* Character Field Actions Styling */
+  /* Output Format */
+  /* Main Prompt Area */
+  /* Character Field Styling */
+  /* Utility: Disable interaction */
+}
+#charCreatorPopup h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: 500;
+  color: var(--SmartThemeBodyColor);
+}
+#charCreatorPopup h3 {
+  font-weight: 500;
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: var(--SmartThemeBodyColor);
+}
+#charCreatorPopup h4 {
+  font-weight: 500;
+  margin-top: 15px;
+  margin-bottom: 10px;
+  color: var(--SmartThemeBodyColor);
+}
+#charCreatorPopup .container {
+  display: flex;
+  gap: 20px;
+}
+@media (max-width: 992px) {
+  #charCreatorPopup .container {
+    /* Adjust breakpoint for better responsiveness */
+    flex-direction: column;
+  }
+}
+#charCreatorPopup .column {
+  width: 30%;
+  /* Adjusted width */
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+@media (max-width: 992px) {
+  #charCreatorPopup .column {
+    width: 100%;
+  }
+}
+#charCreatorPopup .wide-column {
+  width: 70%;
+  /* Adjusted width */
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+@media (max-width: 992px) {
+  #charCreatorPopup .wide-column {
+    width: 100%;
+  }
+}
+#charCreatorPopup .card {
+  background-color: var(--SmartThemeBlurTintColor);
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 2px 4px var(--SmartThemeShadowColor);
+  margin-bottom: 0;
+  border: 1px solid var(--SmartThemeBorderColor);
+}
+#charCreatorPopup .context-options {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  /* Style for the final checkbox */
+}
+#charCreatorPopup .context-options .message-options {
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+#charCreatorPopup .context-options label[for=charCreator_includeChars],
+#charCreatorPopup .context-options label[for=charCreator_includeWorldInfo] {
+  margin-top: 15px;
+}
+#charCreatorPopup .context-options label[for=charCreator_includeExistingFields] {
+  margin-top: 15px;
+}
+#charCreatorPopup .message-options {
+  padding-left: 20px;
+  border-left: 2px solid var(--SmartThemeBorderColor);
+  margin-left: 5px;
+}
+#charCreatorPopup .message-options h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 0.95em;
+}
+#charCreatorPopup .message-options #charCreator_messageType {
+  margin-bottom: 10px;
+  width: calc(100% - 10px);
+  margin-left: 5px;
+}
+#charCreatorPopup .message-options #charCreator_firstX,
+#charCreatorPopup .message-options #charCreator_lastX,
+#charCreatorPopup .message-options #charCreator_rangeX {
+  margin-top: 8px;
+  padding-left: 5px;
+  font-size: 0.9em;
+}
+#charCreatorPopup .message-options #charCreator_firstX label,
+#charCreatorPopup .message-options #charCreator_lastX label,
+#charCreatorPopup .message-options #charCreator_rangeX label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+#charCreatorPopup .message-options .message-input {
+  width: 60px;
+}
+#charCreatorPopup #charCreator_charIncludeContainer,
+#charCreatorPopup #charCreator_worldInfoIncludeContainer {
+  padding-left: 20px;
+  margin-left: 5px;
+  margin-top: 8px;
+}
+#charCreatorPopup .selector-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--SmartThemeFormBgColor);
+  padding: 8px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--SmartThemeBorderColor);
+  font-size: 0.9em;
+  color: var(--SmartThemeSubtleColor);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+#charCreatorPopup .selector-summary:hover {
+  background-color: var(--SmartThemeFormHoverBgColor);
+}
+#charCreatorPopup .selector-summary i {
+  margin-left: 10px;
+  color: var(--SmartThemeSubtleColor);
+}
+#charCreatorPopup #charCreator_maxTokens_container {
+  display: none;
+  /* Initially hidden */
+  margin-top: 10px;
+}
+#charCreatorPopup .character-field-actions {
+  display: flex;
+  gap: 15px;
+  flex-direction: row-reverse;
+}
+#charCreatorPopup .character-field-actions button {
+  padding: 10px 20px;
+  background-color: var(--SmartThemeBlurTintColor);
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 6px;
+  color: var(--SmartThemeBodyColor);
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#charCreatorPopup .character-field-actions button:hover {
+  background-color: var(--SmartThemeFormHoverBgColor);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px var(--SmartThemeShadowColor);
+}
+#charCreatorPopup .character-field-actions button#charCreator_saveAsNewCharacter {
+  background-color: var(--accent);
+  color: white;
+}
+#charCreatorPopup .character-field-actions button#charCreator_saveAsNewCharacter:hover {
+  background-color: color-mix(in srgb, var(--accent) 85%, white);
+}
+#charCreatorPopup .character-field-actions button#charCreator_reset {
+  border-color: var(--SmartThemeBorderColor);
+}
+#charCreatorPopup .character-field-actions button#charCreator_reset:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#charCreatorPopup #charCreator_outputFormat {
+  margin-top: 5px;
+}
+#charCreatorPopup #charCreator_promptPreset {
+  margin-bottom: 10px;
+  width: 100%;
+}
+#charCreatorPopup #charCreator_prompt {
+  margin-bottom: 10px;
+}
+#charCreatorPopup #charCreator_sendPrompt {
+  width: 100%;
+  background-color: var(--info);
+}
+#charCreatorPopup #charCreator_sendPrompt:hover {
+  background-color: color-mix(in srgb, var(--info) 85%, white);
+}
+#charCreatorPopup .character-field {
+  margin-bottom: 15px;
+}
+#charCreatorPopup .character-field label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 5px;
+  color: var(--SmartThemeBodyColor);
+}
+#charCreatorPopup .character-field .field-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+#charCreatorPopup .character-field .field-container textarea {
+  flex-grow: 1;
+  min-height: 60px;
+}
+#charCreatorPopup .character-field .field-container.large-field textarea {
+  min-height: 120px;
+}
+#charCreatorPopup .character-field .field-container .generate-field-button {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  font-size: 0.9em;
+  height: 30px;
+  line-height: 1.5;
+  background-color: var(--accent);
+}
+#charCreatorPopup .character-field .field-container .generate-field-button:hover {
+  background-color: color-mix(in srgb, var(--accent) 85%, white);
+}
+#charCreatorPopup .character-field .field-container .generate-field-button:disabled .fa-solid {
+  animation: spin 1s linear infinite;
+}
+#charCreatorPopup .character-field .field-prompt-container {
+  margin-top: 8px;
+  padding-right: 35px;
+}
+#charCreatorPopup .character-field .field-prompt-container textarea {
+  width: 100%;
+  min-height: 60px;
+  font-size: 0.9em;
+  border: 1px solid var(--SmartThemeBorderColor);
+  background-color: var(--SmartThemeFormBgColor);
+  color: var(--SmartThemeBodyColor);
+  padding: 8px;
+  border-radius: 5px;
+  resize: vertical;
+}
+#charCreatorPopup .character-field .field-prompt-container textarea::placeholder {
+  color: var(--SmartThemeSubtleColor);
+}
+#charCreatorPopup button:disabled,
+#charCreatorPopup select:disabled,
+#charCreatorPopup input:disabled,
+#charCreatorPopup textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}

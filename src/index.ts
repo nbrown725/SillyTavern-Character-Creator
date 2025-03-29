@@ -329,7 +329,7 @@ async function handlePopupUI() {
         buildFancyDropdown('#charCreator_characterSelector', {
           initialList: characterItems,
           initialValues: activeSession.selectedCharacterIndexes,
-          placeholderText: 'Select characters for context...',
+          placeholderText: 'Select characters...',
           enableSearch: characterItems.length > 10,
           onSelectChange: (_previousValues: string[], newValues: string[]) => {
             activeSession.selectedCharacterIndexes = newValues;
@@ -346,7 +346,7 @@ async function handlePopupUI() {
           buildFancyDropdown('#charCreator_worldInfoSelector', {
             initialList: allWorldNames,
             initialValues: activeSession.selectedWorldNames,
-            placeholderText: 'Select lorebooks for context...',
+            placeholderText: 'Select lorebooks...',
             enableSearch: allWorldNames.length > 10,
             onSelectChange: (_previousValues: string[], newValues: string[]) => {
               activeSession.selectedWorldNames = newValues;

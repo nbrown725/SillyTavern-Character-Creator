@@ -63,7 +63,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   maxContextType: 'profile',
   maxContextValue: 16384,
   maxResponseToken: 1024,
-  outputFormat: 'none',
+  outputFormat: 'xml',
   contextToSend: {
     stDescription: true,
     messages: {
