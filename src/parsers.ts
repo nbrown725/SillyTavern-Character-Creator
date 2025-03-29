@@ -13,8 +13,9 @@ const xmlParser = new XMLParser({
  * @throws Error if parsing fails or the format is invalid.
  */
 export function parseResponse(content: string, format: 'xml' | 'json' | 'none'): string {
-  // Extract content from inside code blocks
-  const codeBlockMatch = content.match(/```[\s\S]*?([\s\S]+?)```/);
+  // Extract content from inside code blocks, handling language identifiers
+  const codeBlockRegex = /```(?:\w+\n|\n)([\s\S]*?)```/; // Use * to match zero or more characters
+  const codeBlockMatch = content.match(codeBlockRegex);
   const cleanedContent = codeBlockMatch ? codeBlockMatch[1].trim() : content.trim();
 
   try {
@@ -28,9 +29,9 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none'):
         } else if (responseValueXml && typeof responseValueXml['#text'] === 'string') {
           // Handle cases where parser puts content in #text
           return responseValueXml['#text'].trim();
-        } else if (responseValueXml && Object.keys(responseValueXml).length > 0) {
+        } else if (parsedXml && Object.keys(parsedXml).length > 0) {
           // Handle case with multiple keys by taking first value
-          const firstValue = Object.values(responseValueXml)[0];
+          const firstValue = Object.values(parsedXml)[0];
           if (typeof firstValue === 'string') {
             return firstValue.trim();
             // @ts-ignore
@@ -45,9 +46,12 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none'):
         const parsedJson = JSON.parse(cleanedContent);
         if (parsedJson && typeof parsedJson.response === 'string') {
           return parsedJson.response.trim();
-        } else if (parsedJson && Object.keys(parsedJson.response).length > 0) {
+        } else if (parsedJson?.response && Object.keys(parsedJson.response).length > 0) {
           // Handle case with multiple keys by taking first value
           return String(Object.values(parsedJson.response)[0]).trim();
+        } else if (parsedJson && Object.keys(parsedJson).length > 0) {
+          // Handle case with multiple keys by taking first value
+          return String(Object.values(parsedJson)[0]).trim();
         }
         throw new Error('Invalid JSON format: "response" key not found or its value is not a string.');
 
