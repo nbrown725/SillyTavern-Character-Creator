@@ -452,7 +452,7 @@ async function handlePopupUI() {
             textarea.value = activeSession.fields[fieldName]?.value ?? '';
             button.dataset.field = fieldName;
             button.title = `Generate ${config.label}`;
-            promptTextarea.placeholder = `Enter custom prompt for ${config.label.toLowerCase()} generation...`;
+            promptTextarea.placeholder = `Enter addiitonal prompt for ${config.label.toLowerCase()}...`;
             promptTextarea.value = activeSession.fields[fieldName]?.prompt ?? '';
 
             if (!config.promptEnabled) {
