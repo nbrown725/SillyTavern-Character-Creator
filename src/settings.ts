@@ -10,7 +10,7 @@ import {
 import { ContextToSend } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 export const FORMAT_VERSION = 'F_1.0';
 
 export const KEYS = {

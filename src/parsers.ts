@@ -13,11 +13,9 @@ const xmlParser = new XMLParser({
  * @throws Error if parsing fails or the format is invalid.
  */
 export function parseResponse(content: string, format: 'xml' | 'json' | 'none'): string {
-  // Remove potential markdown code blocks
-  const cleanedContent = content
-    .replace(/```(xml|json)?/g, '')
-    .replace(/```/g, '')
-    .trim();
+  // Extract content from inside code blocks
+  const codeBlockMatch = content.match(/```[\s\S]*?([\s\S]+?)```/);
+  const cleanedContent = codeBlockMatch ? codeBlockMatch[1].trim() : content.trim();
 
   try {
     switch (format) {

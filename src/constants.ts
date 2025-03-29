@@ -127,16 +127,33 @@ export const DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE = `{{#if characters}}
 {{/if}}`;
 
 export const DEFAULT_XML_FORMAT_DESC = `You MUST provide your response wrapped ONLY in a single <response> XML tag.
+
+When providing code in your response, wrap it in triple backticks:
+
 Example:
-<response>Generated content for the field goes here.</response>`;
+\`\`\`
+<response>Generated content for the field goes here.</response>
+\`\`\``;
 
 export const DEFAULT_JSON_FORMAT_DESC = `You MUST provide your response as a JSON object with a single key "response" containing the generated content as a string.
+
+When providing code in your response, wrap it in triple backticks:
+
 Example:
+\`\`\`
 {
   "response": "Generated content for the field goes here."
-}`;
+}
+\`\`\``;
 
-export const DEFAULT_NONE_FORMAT_DESC = `You MUST provide ONLY the raw text content for the field, without any formatting, XML tags, JSON structure, or explanatory text. Just the content itself.`;
+export const DEFAULT_NONE_FORMAT_DESC = `You MUST provide ONLY the raw text content for the field, without any formatting, XML tags, JSON structure, or explanatory text. Just the content itself.
+
+When providing code in your response, wrap it in triple backticks:
+
+Example:
+\`\`\`
+Generated content for the field goes here.
+\`\`\``;
 
 export const DEFAULT_LOREBOOK_DEFINITION = `{{#each lorebooks}}
   {{#if this.length}}
