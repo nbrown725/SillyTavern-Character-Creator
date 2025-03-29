@@ -4,7 +4,7 @@
 
 ## Overview
 
-A [SillyTavern](https://docs.sillytavern.app/) extension that helps you create character cards based on the your ST data with LLMs using [connection profiles](https://docs.sillytavern.app/usage/core-concepts/connection-profiles/).
+A [SillyTavern](https://docs.sillytavern.app/) extension that helps you create character cards based on your ST data with LLMs using [connection profiles](https://docs.sillytavern.app/usage/core-concepts/connection-profiles/).
 
 ![popup](images/popup.png)
 
@@ -40,7 +40,7 @@ To open the CREC popup, click the extension icon:
 
 >Can I use this with my local 8B/12B RP model?
 
-Most likely yes. If you can't, try changing _Output Format_.
+Most likely, yes. If you can't, try changing _Output Format_.
 
 >Can you suggest a model?
 
