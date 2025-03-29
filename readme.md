@@ -34,7 +34,7 @@ To open the CREC popup, click the extension icon:
 
 ## Demo Video
 
-
+https://github.com/user-attachments/assets/4ed6fbb3-c2a4-4cdc-8692-406af9094266
 
 ## FAQ
 
