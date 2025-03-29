@@ -45,3 +45,15 @@ Most likely, yes. If you can't, try changing _Output Format_.
 >Can you suggest a model?
 
 Gemini models are cheap, fast, and efficient. I usually use Gemini Flash 2.0. But most models should work fine.
+
+>What is the difference compared to alternatives?
+
+In general, alternatives are just websites. This means you can't feed the AI with your ST character/lorebook data. They mostly use a single model. Their customization is limited.
+
+>What is the difference compared to [chargen](https://chargen.kubes-lab.com/)?
+
+The one thing chargen might be better is it can give better results because it uses [chargen-v2](https://huggingface.co/kubernetes-bad/chargen-v2) model that trained from character cards.  But since CROC is customizable, you can even use _chargen-v2_ on your local.
+
+>What is the difference compared to [pookies](https://pookies.ai/create)?
+
+There are 2 advantages of pookie. 1. You can give a fandom website so it can analyze it. 2. It has detailed fields like _age, gender, running outfit_. Currently, I'm not planning to implement detailed fields because their quality differs from LLM to LLM.
