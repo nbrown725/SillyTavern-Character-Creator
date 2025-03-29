@@ -1,4 +1,10 @@
-import { buildFancyDropdown, buildPresetSelect, BuildPromptOptions, DropdownItem } from 'sillytavern-utils-lib';
+import {
+  buildFancyDropdown,
+  buildPresetSelect,
+  BuildPromptOptions,
+  createCharacter,
+  DropdownItem,
+} from 'sillytavern-utils-lib';
 import { selected_group, st_echo, this_chid, world_names } from 'sillytavern-utils-lib/config';
 import { POPUP_TYPE } from 'sillytavern-utils-lib/types/popup';
 
@@ -21,7 +27,7 @@ import {
 } from './constants.js';
 
 import { extensionName, settingsManager, ExtensionSettings, OutputFormat } from './settings.js';
-import { Character } from 'sillytavern-utils-lib/types';
+import { Character, FullExportData } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 
 // @ts-ignore
@@ -304,6 +310,10 @@ async function handlePopupUI() {
 
       const context = SillyTavern.getContext();
 
+      activeSession.selectedCharacterIndexes = activeSession.selectedCharacterIndexes.filter(
+        (chid) => context.characters[Number(chid)],
+      );
+
       // "Characters to Include" Dropdown
       const charSelectorContainer = popupContainer.querySelector('#charCreator_characterSelector');
       if (charSelectorContainer) {
@@ -482,10 +492,10 @@ async function handlePopupUI() {
           enableSearch: characterItems.length > 10,
           multiple: false,
           closeOnSelect: true,
-          onSelectChange: async (_previousValues: string[], newValues: string[]) => {
-            if (newValues.length === 0) return;
-            const selectedId = newValues[0];
-            if (selectedId.length === 0) return;
+          async onBeforeSelection(_currentValues, proposedValues) {
+            if (proposedValues.length === 0) return false;
+            const selectedId = proposedValues[0];
+            if (selectedId.length === 0) return false;
 
             const allFieldEmpty = CHARACTER_FIELDS.every((fieldName) => {
               const textarea = fieldElements[fieldName]?.textarea;
@@ -497,8 +507,15 @@ async function handlePopupUI() {
                 'Load Character Data',
                 'Are you sure you want to overwrite existing data? This cannot be undone.',
               );
-              if (!confirm) return;
+              if (!confirm) return false;
             }
+
+            return true;
+          },
+          onSelectChange: async (_previousValues: string[], newValues: string[]) => {
+            if (newValues.length === 0) return;
+            const selectedId = newValues[0];
+            if (selectedId.length === 0) return;
 
             const character = context.characters[parseInt(selectedId)];
             if (!character) {
@@ -542,6 +559,45 @@ async function handlePopupUI() {
               fieldElements[fieldName].promptTextarea.dispatchEvent(new Event('change'));
             }
           });
+        }
+      });
+
+      const saveAsNewCharacterButton = popupContainer.querySelector(
+        '#charCreator_saveAsNewCharacter',
+      ) as HTMLButtonElement;
+      saveAsNewCharacterButton.addEventListener('click', async () => {
+        if (!activeSession.fields.name.value) {
+          st_echo('warning', 'Please enter a name for the new character.');
+          return;
+        }
+        const confirm = await globalContext.Popup.show.confirm('Save as New Character', `Are you sure?`);
+        if (!confirm) return;
+        const data: FullExportData = {
+          name: activeSession.fields.name.value,
+          description: activeSession.fields.description.value,
+          personality: activeSession.fields.personality.value,
+          scenario: activeSession.fields.scenario.value,
+          first_mes: activeSession.fields.first_mes.value,
+          mes_example: activeSession.fields.mes_example.value,
+          data: {
+            name: activeSession.fields.name.value,
+            description: activeSession.fields.description.value,
+            personality: activeSession.fields.personality.value,
+            scenario: activeSession.fields.scenario.value,
+            first_mes: activeSession.fields.first_mes.value,
+            mes_example: activeSession.fields.mes_example.value,
+            tags: [],
+            avatar: 'none',
+          },
+          avatar: 'none',
+          tags: [],
+          spec: 'chara_card_v3',
+          spec_version: '3.0',
+        };
+        try {
+          await createCharacter(data, true);
+        } catch (error: any) {
+          st_echo('error', `Failed to create character: ${error.message}`);
         }
       });
 
