@@ -162,17 +162,11 @@
         border-radius: 5px;
         border: 1px solid var(--SmartThemeBorderColor);
         font-size: 0.9em;
-        color: var(--SmartThemeSubtleColor);
         cursor: pointer;
         transition: background-color 0.2s ease;
 
-        &:hover {
-            background-color: var(--SmartThemeFormHoverBgColor);
-        }
-
         i {
             margin-left: 10px;
-            color: var(--SmartThemeSubtleColor);
         }
     }
 
@@ -204,27 +198,16 @@
             justify-content: center;
 
             &:hover {
-                background-color: var(--SmartThemeFormHoverBgColor);
                 transform: translateY(-1px);
                 box-shadow: 0 2px 4px var(--SmartThemeShadowColor);
             }
 
             &#charCreator_saveAsNewCharacter {
-                background-color: var(--accent);
                 color: white;
-
-                &:hover {
-                    background-color: color-mix(in srgb, var(--accent) 85%, white);
-                }
             }
 
             &#charCreator_reset {
                 border-color: var(--SmartThemeBorderColor);
-
-                &:hover {
-                    border-color: var(--accent);
-                    color: var(--accent);
-                }
             }
         }
     }
@@ -278,17 +261,12 @@
                 min-height: 120px;
             }
 
-            .generate-field-button {
+            .generate-field-button, .delete-draft-field-button {
                 flex-shrink: 0;
                 padding: 5px 8px;
                 font-size: 0.9em;
                 height: 30px;
                 line-height: 1.5;
-                background-color: var(--accent);
-
-                &:hover {
-                    background-color: color-mix(in srgb, var(--accent) 85%, white);
-                }
 
                 &:disabled .fa-solid {
                     animation: spin 1s linear infinite;
@@ -326,5 +304,70 @@
         opacity: 0.6;
         cursor: not-allowed;
         pointer-events: none;
+    }
+
+
+    /* Tab Styles */
+    .tab-buttons {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        border-bottom: 1px solid var(--SmartThemeBorderColor);
+        padding-bottom: 10px;
+        align-items: center;
+        /* Align Add button vertically */
+        justify-content: flex-start;
+
+        .right-aligned {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            .menu_button {
+                width: auto;
+            }
+        }
+
+        .tab-button {
+            background-color: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 4px 4px 0 0;
+            /* Slight rounding at top */
+
+            &:hover {
+                background-color: var(--white30a);
+            }
+
+            &.active {
+                font-weight: 500;
+            }
+        }
+    }
+
+    .tab-content-area {
+        position: relative;
+        /* Optional: for potential future absolute positioning inside */
+    }
+
+    .tab-content {
+        display: none;
+        /* Hide tabs by default */
+
+        &.active {
+            display: block;
+            /* Show active tab */
+        }
+
+        /* Remove bottom margin from card when used as tab content */
+        margin-bottom: 0;
+    }
+
+    /* Utility styles */
+    .subtle {
+        font-size: 0.9em;
+        margin-bottom: 15px;
     }
 }

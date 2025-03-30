@@ -219,12 +219,19 @@ export const DEFAULT_WORLD_INFO_CHARACTER_DEFINITION = `### {{character.name}}
   {{#if character.mes_example}}{{character.mes_example}}{{else}}*Not provided*{{/if}}`;
 
 export const DEFAULT_EXISTING_FIELDS_DEFINITION = `=== CURRENT CHARACTER FIELD VALUES ===
-- **Description:** {{#if fields.description}}{{fields.description}}{{else}}*Not provided*{{/if}}
-- **Personality:** {{#if fields.personality}}{{fields.personality}}{{else}}*Not provided*{{/if}}
-- **Scenario:** {{#if fields.scenario}}{{fields.scenario}}{{else}}*Not provided*{{/if}}
-- **First Message:** {{#if fields.first_mes}}{{fields.first_mes}}{{else}}*Not provided*{{/if}}
-- **Example Dialogue:**
-  {{#if fields.mes_example}}{{fields.mes_example}}{{else}}*Not provided*{{/if}}`;
+{{#if fields.core}}
+**Core Fields:**
+{{#each fields.core as |value key|}}
+- **{{key}}:** {{#if value}}{{value}}{{else}}*Not provided*{{/if}}
+{{/each}}
+{{/if}}
+
+{{#if fields.draft}}
+**Draft Fields:**
+{{#each fields.draft as |value key|}}
+- **{{key}}:** {{#if value}}{{value}}{{else}}*Not provided*{{/if}}
+{{/each}}
+{{/if}}`;
 
 export const DEFAULT_TASK_DESCRIPTION = `Your task is to generate the content for the "{{targetField}}" field of a character card. Base your response on the preceding context (chat history, persona, system prompts, character/lore definitions, existing fields, etc.).
 {{#if userInstructions}}

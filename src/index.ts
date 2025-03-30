@@ -16,6 +16,8 @@ import {
   ContextToSend,
   CharacterFieldName,
   CHARACTER_FIELDS,
+  CharacterField,
+  CHARACTER_LABELS,
 } from './generate.js';
 
 import {
@@ -26,6 +28,7 @@ import {
   DEFAULT_PROMPT_CONTENTS,
   PromptSetting,
   convertToVariableName,
+  VERSION,
 } from './settings.js';
 import { DEFAULT_MAIN_CONTEXT_TEMPLATE } from './constants.js';
 import { Character, FullExportData } from 'sillytavern-utils-lib/types';
@@ -457,11 +460,15 @@ async function handlePopupUI() {
         // @ts-ignore
         activeSession.fields = {};
       }
+      if (!activeSession.draftFields) {
+        activeSession.draftFields = {};
+      }
       CHARACTER_FIELDS.forEach((field) => {
         if (!activeSession.fields[field]) {
           activeSession.fields[field] = {
             value: '',
             prompt: '',
+            label: '',
           };
         }
       });
@@ -564,21 +571,32 @@ async function handlePopupUI() {
 
       // Define field configurations
       const fieldConfigs = {
-        name: { label: 'Name', rows: 1, large: false, promptEnabled: false },
-        description: { label: 'Description', rows: 5, large: true, promptEnabled: true },
-        personality: { label: 'Personality', rows: 4, large: true, promptEnabled: true },
-        scenario: { label: 'Scenario', rows: 3, large: true, promptEnabled: true },
-        first_mes: { label: 'First Message', rows: 3, large: true, promptEnabled: true },
-        mes_example: { label: 'Example Dialogue', rows: 6, large: true, promptEnabled: true },
+        name: { label: CHARACTER_LABELS.name, rows: 1, large: false, promptEnabled: false },
+        description: { label: CHARACTER_LABELS.description, rows: 5, large: true, promptEnabled: true },
+        personality: { label: CHARACTER_LABELS.personality, rows: 4, large: true, promptEnabled: true },
+        scenario: { label: CHARACTER_LABELS.scenario, rows: 3, large: true, promptEnabled: true },
+        first_mes: { label: CHARACTER_LABELS.first_mes, rows: 3, large: true, promptEnabled: true },
+        mes_example: { label: CHARACTER_LABELS.mes_example, rows: 6, large: true, promptEnabled: true },
       };
 
       // Get template and container
-      const template = popupContainer.querySelector<HTMLTemplateElement>('#charCreator_fieldTemplate');
-      const fieldsContainer = popupContainer.querySelector('#charCreator_fieldsContainer');
+      const coreFieldTemplate = popupContainer.querySelector('#charCreator_coreFieldTemplate') as HTMLTemplateElement;
+      const draftFieldTemplate = popupContainer.querySelector('#charCreator_draftFieldTemplate') as HTMLTemplateElement;
+      const coreFieldsContainer = popupContainer.querySelector('#charCreator_coreFieldsContainer') as HTMLDivElement;
+      const draftFieldsList = popupContainer.querySelector('#charCreator_draftFieldsList') as HTMLDivElement;
+      const tabButtons = popupContainer.querySelectorAll('.tab-button');
+      const tabContents = popupContainer.querySelectorAll('.tab-content');
+      const addDraftFieldButton = popupContainer.querySelector('#charCreator_addDraftField') as HTMLButtonElement;
+      const exportDraftFieldsButton = popupContainer.querySelector(
+        '#charCreator_exportDraftFields',
+      ) as HTMLButtonElement;
+      const importDraftFieldsButton = popupContainer.querySelector(
+        '#charCreator_importDraftFields',
+      ) as HTMLButtonElement;
 
       // Initialize storage for field elements
       // @ts-ignore
-      const fieldElements: Record<
+      const coreFieldElements: Record<
         CharacterFieldName,
         {
           textarea: HTMLTextAreaElement;
@@ -587,52 +605,230 @@ async function handlePopupUI() {
         }
       > = {};
 
-      if (template && fieldsContainer) {
-        // Generate fields from template
-        CHARACTER_FIELDS.forEach((fieldName) => {
-          const config = fieldConfigs[fieldName];
-          const clone = template.content.cloneNode(true) as DocumentFragment;
+      // --- Tab Switching Logic ---
+      const setActiveTab = (targetTabId: string) => {
+        tabButtons.forEach((button) => {
+          button.classList.toggle('active', button.getAttribute('data-tab') === targetTabId);
+        });
+        tabContents.forEach((content) => {
+          content.classList.toggle('active', content.id === targetTabId);
+        });
+        const isDraft = targetTabId === 'charCreator_draftFieldsContainer';
+        addDraftFieldButton.style.display = isDraft ? 'block' : 'none';
+        exportDraftFieldsButton.style.display = isDraft ? 'block' : 'none';
+        importDraftFieldsButton.style.display = isDraft ? 'block' : 'none';
+      };
 
-          // Configure the cloned elements
-          const fieldDiv = clone.querySelector('.character-field');
-          const label = clone.querySelector('label');
-          const textarea = clone.querySelector('.field-container textarea') as HTMLTextAreaElement;
-          const button = clone.querySelector('.generate-field-button') as HTMLButtonElement;
-          const promptTextarea = clone.querySelector('.field-prompt-container textarea') as HTMLTextAreaElement;
+      tabButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const targetTabId = button.getAttribute('data-tab');
+          if (targetTabId) {
+            setActiveTab(targetTabId);
+          }
+        });
+      });
 
-          if (fieldDiv && label && textarea && button && promptTextarea) {
-            // Set IDs and attributes
-            textarea.id = `charCreator_field_${fieldName}`;
-            promptTextarea.id = `charCreator_prompt_${fieldName}`;
-            label.dataset.for = textarea.id;
+      setActiveTab('charCreator_coreFieldsContainer');
 
-            // Set content
-            label.textContent = config.label;
-            textarea.rows = config.rows;
-            textarea.value = activeSession.fields[fieldName]?.value ?? '';
-            button.dataset.field = fieldName;
-            button.title = `Generate ${config.label}`;
-            promptTextarea.placeholder = `Enter addiitonal prompt for ${config.label.toLowerCase()}...`;
-            promptTextarea.value = activeSession.fields[fieldName]?.prompt ?? '';
+      // Generate core fields from template
+      CHARACTER_FIELDS.forEach((fieldName) => {
+        const config = fieldConfigs[fieldName];
+        const clone = coreFieldTemplate.content.cloneNode(true) as DocumentFragment;
 
-            if (!config.promptEnabled) {
-              promptTextarea.closest('.field-prompt-container')?.remove();
+        // Configure the cloned elements
+        const fieldDiv = clone.querySelector('.character-field') as HTMLElement;
+        const label = clone.querySelector('label') as HTMLLabelElement;
+        const textarea = clone.querySelector('.field-value-textarea') as HTMLTextAreaElement; // Use specific class
+        const button = clone.querySelector('.generate-field-button') as HTMLButtonElement;
+        const promptTextarea = clone.querySelector('.field-prompt-textarea') as HTMLTextAreaElement; // Use specific class
+
+        // Set IDs and attributes
+        textarea.id = `charCreator_field_${fieldName}`;
+        promptTextarea.id = `charCreator_prompt_${fieldName}`;
+        label.textContent = config.label;
+        label.htmlFor = textarea.id; // Set label 'for' attribute
+
+        // Set content
+        textarea.rows = config.rows;
+        textarea.value = activeSession.fields[fieldName]?.value ?? '';
+        button.dataset.field = fieldName;
+        button.title = `Generate ${config.label}`;
+        promptTextarea.placeholder = `Enter additional prompt for ${config.label.toLowerCase()}...`;
+        promptTextarea.value = activeSession.fields[fieldName]?.prompt ?? '';
+
+        if (!config.promptEnabled) {
+          promptTextarea.closest('.field-prompt-container')?.remove();
+        }
+
+        if (config.large) {
+          textarea.closest('.field-container')?.classList.add('large-field');
+        }
+
+        // Store references
+        coreFieldElements[fieldName] = {
+          textarea,
+          button,
+          promptTextarea,
+        };
+
+        coreFieldsContainer.appendChild(clone);
+      });
+
+      // --- Render Draft Fields ---
+      const renderDraftField = (fieldName: string, fieldData: CharacterField) => {
+        if (!draftFieldTemplate || !draftFieldsList) return;
+
+        const clone = draftFieldTemplate.content.cloneNode(true) as DocumentFragment;
+        const fieldDiv = clone.querySelector('.character-field') as HTMLElement;
+        const label = clone.querySelector('label') as HTMLLabelElement;
+        const textarea = clone.querySelector('.field-value-textarea') as HTMLTextAreaElement;
+        const promptTextarea = clone.querySelector('.field-prompt-textarea') as HTMLTextAreaElement;
+        const deleteButton = clone.querySelector('.delete-draft-field-button') as HTMLButtonElement;
+        const generateButton = clone.querySelector('.generate-field-button') as HTMLButtonElement;
+
+        fieldDiv.dataset.draftFieldName = fieldName;
+        label.textContent = fieldData.label; // Use the key as the label for now
+        label.htmlFor = `charCreator_draft_field_${fieldName}`;
+        textarea.id = `charCreator_draft_field_${fieldName}`;
+        textarea.value = fieldData.value ?? '';
+        promptTextarea.value = fieldData.prompt ?? '';
+        promptTextarea.id = `charCreator_draft_prompt_${fieldName}`;
+        promptTextarea.placeholder = `Enter additional prompt for ${fieldData.label}...`;
+        deleteButton.dataset.draftFieldName = fieldName;
+        generateButton.dataset.field = fieldName;
+
+        // Event listener for value change
+        textarea.addEventListener('change', () => {
+          if (activeSession.draftFields[fieldName]) {
+            activeSession.draftFields[fieldName].value = textarea.value;
+            saveSession();
+          }
+        });
+
+        // Event listener for prompt change
+        promptTextarea.addEventListener('change', () => {
+          if (activeSession.draftFields[fieldName]) {
+            activeSession.draftFields[fieldName].prompt = promptTextarea.value;
+            saveSession();
+          }
+        });
+
+        // Event listener for delete button
+        deleteButton.addEventListener('click', async () => {
+          const confirm = await globalContext.Popup.show.confirm(
+            'Delete Draft Field',
+            `Are you sure you want to delete the draft field "${fieldData.label}"? This cannot be undone.`,
+          );
+          if (confirm) {
+            delete activeSession.draftFields[fieldName];
+            fieldDiv.remove();
+            saveSession();
+          }
+        });
+
+        generateButton.addEventListener('click', () => {
+          handleFieldGeneration({
+            targetField: fieldName,
+            button: generateButton,
+            textarea,
+            isDraft: true,
+          });
+        });
+
+        draftFieldsList.appendChild(clone);
+      };
+
+      const renderAllDraftFields = () => {
+        if (!draftFieldsList) return;
+        draftFieldsList.innerHTML = ''; // Clear existing draft fields
+        Object.entries(activeSession.draftFields || {}).forEach(([name, data]) => {
+          renderDraftField(name, data);
+        });
+      };
+
+      // Initial rendering of draft fields
+      renderAllDraftFields();
+
+      // --- Export/Import Draft Fields Logic ---
+      exportDraftFieldsButton?.addEventListener('click', () => {
+        const exportData = {
+          draftFields: activeSession.draftFields,
+          timestamp: new Date().toISOString(),
+          version: VERSION,
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `draft-fields-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      importDraftFieldsButton?.addEventListener('click', async () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+
+        input.addEventListener('change', async () => {
+          const file = input.files?.[0];
+          if (!file) return;
+
+          try {
+            const text = await file.text();
+            const importData = JSON.parse(text);
+
+            if (!importData.draftFields || typeof importData.draftFields !== 'object') {
+              throw new Error('Invalid draft fields data');
             }
 
-            // Add large-field class if needed
-            if (config.large) {
-              textarea.closest('.field-container')?.classList.add('large-field');
+            let confirm = true;
+            if (Object.keys(activeSession.draftFields).length > 0) {
+              confirm = await globalContext.Popup.show.confirm(
+                'Import Draft Fields',
+                'This will replace all existing draft fields. Continue?',
+              );
             }
 
-            // Store references
-            fieldElements[fieldName] = {
-              textarea,
-              button,
-              promptTextarea,
-            };
+            if (confirm) {
+              activeSession.draftFields = importData.draftFields;
+              saveSession();
+              renderAllDraftFields();
+              st_echo('success', 'Draft fields imported successfully');
+            }
+          } catch (error: any) {
+            st_echo('error', `Failed to import draft fields: ${error.message}`);
+          }
+        });
+
+        input.click();
+      });
+
+      // --- Add Draft Field Button Logic ---
+      if (addDraftFieldButton) {
+        addDraftFieldButton.addEventListener('click', async () => {
+          const fieldNameInput = await globalContext.Popup.show.input('Enter Draft Field Name', '');
+          if (!fieldNameInput || !fieldNameInput.trim()) {
+            return;
+          }
+          const fieldName = convertToVariableName(fieldNameInput.trim()); // Sanitize name
+          if (!fieldName) {
+            st_echo('error', 'Invalid field name provided.');
+            return;
           }
 
-          fieldsContainer.appendChild(clone);
+          if (activeSession.draftFields[fieldName] || fieldConfigs[fieldName as CharacterFieldName]) {
+            st_echo('warning', `Field name "${fieldName}" already exists.`);
+            return;
+          }
+
+          // Add the new draft field
+          activeSession.draftFields[fieldName] = { value: '', prompt: '', label: fieldNameInput };
+          renderDraftField(fieldName, activeSession.draftFields[fieldName]);
+          saveSession();
         });
       }
 
@@ -658,7 +854,7 @@ async function handlePopupUI() {
             if (selectedId.length === 0) return false;
 
             const allFieldEmpty = CHARACTER_FIELDS.every((fieldName) => {
-              const textarea = fieldElements[fieldName]?.textarea;
+              const textarea = coreFieldElements[fieldName]?.textarea;
               return textarea && textarea.value.trim() === '';
             });
 
@@ -685,8 +881,8 @@ async function handlePopupUI() {
 
             // Load the character fields
             CHARACTER_FIELDS.forEach((fieldName) => {
-              const textarea = fieldElements[fieldName]?.textarea;
-              const promptTextarea = fieldElements[fieldName]?.promptTextarea;
+              const textarea = coreFieldElements[fieldName]?.textarea;
+              const promptTextarea = coreFieldElements[fieldName]?.promptTextarea;
 
               if (textarea) {
                 // @ts-ignore
@@ -706,19 +902,23 @@ async function handlePopupUI() {
       resetButton.addEventListener('click', async () => {
         const confirm = await globalContext.Popup.show.confirm(
           'Reset Fields',
-          'Are you sure you want to reset all fields? This cannot be undone.',
+          'Are you sure? This will reset core fields and remove draft fields. This cannot be undone.',
         );
         if (confirm) {
           CHARACTER_FIELDS.forEach((fieldName) => {
-            if (fieldElements[fieldName]?.textarea) {
-              fieldElements[fieldName].textarea.value = '';
-              fieldElements[fieldName].textarea.dispatchEvent(new Event('change'));
+            if (coreFieldElements[fieldName]?.textarea) {
+              coreFieldElements[fieldName].textarea.value = '';
+              coreFieldElements[fieldName].textarea.dispatchEvent(new Event('change'));
             }
-            if (fieldElements[fieldName]?.promptTextarea) {
-              fieldElements[fieldName].promptTextarea.value = '';
-              fieldElements[fieldName].promptTextarea.dispatchEvent(new Event('change'));
+            if (coreFieldElements[fieldName]?.promptTextarea) {
+              coreFieldElements[fieldName].promptTextarea.value = '';
+              coreFieldElements[fieldName].promptTextarea.dispatchEvent(new Event('change'));
             }
           });
+
+          activeSession.draftFields = {};
+          saveSession();
+          renderAllDraftFields();
         }
       });
 
@@ -832,131 +1032,168 @@ async function handlePopupUI() {
       }
 
       // --- Generation Logic ---
-      Object.entries(fieldElements).forEach(([fieldName, { textarea, button, promptTextarea }]) => {
-        if (button) {
-          button.addEventListener('click', async () => {
-            const targetField = fieldName as CharacterFieldName;
+      // Shared function to handle field generation
+      async function handleFieldGeneration(options: {
+        targetField: string;
+        button: HTMLButtonElement;
+        textarea: HTMLTextAreaElement;
+        isDraft?: boolean;
+      }) {
+        const { targetField, button, textarea, isDraft = false } = options;
 
-            // Disable button and show loading state
-            button.disabled = true;
-            const originalIcon = button.innerHTML;
-            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        // Disable button and show loading state
+        button.disabled = true;
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
-            try {
-              const userPrompt = (popupContainer.querySelector('#charCreator_prompt') as HTMLTextAreaElement).value;
+        try {
+          // @ts-ignore
+          const userPrompt = (popupContainer.querySelector('#charCreator_prompt') as HTMLTextAreaElement).value;
 
-              if (!settings.profileId) {
-                st_echo('warning', 'Please select a connection profile.');
-                return;
-              }
+          if (!settings.profileId) {
+            st_echo('warning', 'Please select a connection profile.');
+            return;
+          }
 
-              const profile = context.extensionSettings.connectionManager?.profiles?.find(
-                (p) => p.id === settings.profileId,
-              );
-              if (!profile) {
-                st_echo('warning', 'Connection profile not found.');
-                return;
-              }
+          const profile = context.extensionSettings.connectionManager?.profiles?.find(
+            (p: any) => p.id === settings.profileId,
+          );
+          if (!profile) {
+            st_echo('warning', 'Connection profile not found.');
+            return;
+          }
 
-              const buildPromptOptions: BuildPromptOptions = {
-                presetName: profile?.preset,
-                contextName: profile?.context,
-                instructName: profile?.instruct,
-                targetCharacterId: this_chid,
-                ignoreCharacterFields: true,
-                ignoreWorldInfo: true,
-                ignoreAuthorNote: true,
-                maxContext:
-                  settings.maxContextType === 'custom'
-                    ? settings.maxContextValue
-                    : settings.maxContextType === 'profile'
-                      ? 'preset'
-                      : 'active',
-                includeNames: !!selected_group,
+          const buildPromptOptions: BuildPromptOptions = {
+            presetName: profile?.preset,
+            contextName: profile?.context,
+            instructName: profile?.instruct,
+            targetCharacterId: this_chid,
+            ignoreCharacterFields: true,
+            ignoreWorldInfo: true,
+            ignoreAuthorNote: true,
+            maxContext:
+              settings.maxContextType === 'custom'
+                ? settings.maxContextValue
+                : settings.maxContextType === 'profile'
+                  ? 'preset'
+                  : 'active',
+            includeNames: !!selected_group,
+          };
+
+          // Add message range options
+          const msgContext = settings.contextToSend.messages;
+          switch (msgContext.type) {
+            case 'none':
+              buildPromptOptions.messageIndexesBetween = { start: -1, end: -1 };
+              break;
+            case 'first':
+              buildPromptOptions.messageIndexesBetween = { start: 0, end: msgContext.first ?? 10 };
+              break;
+            case 'last':
+              const chatLength = globalContext.chat?.length ?? 0;
+              const lastCount = msgContext.last ?? 10;
+              buildPromptOptions.messageIndexesBetween = {
+                end: Math.max(0, chatLength - 1),
+                start: Math.max(0, chatLength - lastCount),
               };
+              break;
+            case 'range':
+              buildPromptOptions.messageIndexesBetween = {
+                start: msgContext.range?.start ?? 0,
+                end: msgContext.range?.end ?? 10,
+              };
+              break;
+            case 'all':
+            default:
+              break;
+          }
+          if (this_chid === undefined && !selected_group) {
+            buildPromptOptions.messageIndexesBetween = { start: -1, end: -1 };
+          }
 
-              // Add message range options
-              const msgContext = settings.contextToSend.messages;
-              switch (msgContext.type) {
-                case 'none':
-                  buildPromptOptions.messageIndexesBetween = { start: -1, end: -1 };
-                  break;
-                case 'first':
-                  buildPromptOptions.messageIndexesBetween = { start: 0, end: msgContext.first ?? 10 };
-                  break;
-                case 'last':
-                  const chatLength = globalContext.chat?.length ?? 0;
-                  const lastCount = msgContext.last ?? 10;
-                  buildPromptOptions.messageIndexesBetween = {
-                    end: Math.max(0, chatLength - 1),
-                    start: Math.max(0, chatLength - lastCount),
-                  };
-                  break;
-                case 'range':
-                  buildPromptOptions.messageIndexesBetween = {
-                    start: msgContext.range?.start ?? 0,
-                    end: msgContext.range?.end ?? 10,
-                  };
-                  break;
-                case 'all':
-                default:
-                  break;
-              }
-              if (this_chid === undefined && !selected_group) {
-                buildPromptOptions.messageIndexesBetween = { start: -1, end: -1 };
-              }
+          let formatDescription = '';
+          switch (settings.outputFormat) {
+            case 'xml':
+              formatDescription = settings.prompts.xmlFormat.content;
+              break;
+            case 'json':
+              formatDescription = settings.prompts.jsonFormat.content;
+              break;
+            case 'none':
+              formatDescription = settings.prompts.noneFormat.content;
+              break;
+          }
 
-              let formatDescription = '';
-              switch (settings.outputFormat) {
-                case 'xml':
-                  formatDescription = settings.prompts.xmlFormat.content;
-                  break;
-                case 'json':
-                  formatDescription = settings.prompts.jsonFormat.content;
-                  break;
-                case 'none':
-                  formatDescription = settings.prompts.noneFormat.content;
-                  break;
-              }
+          const entriesGroupByWorldName: Record<string, WIEntry[]> = {};
+          // Use Promise.all for parallel loading
+          await Promise.all(
+            world_names
+              .filter((name: string) => activeSession.selectedWorldNames.includes(name))
+              .map(async (name: string) => {
+                const worldInfo = await globalContext.loadWorldInfo(name);
+                if (worldInfo) {
+                  entriesGroupByWorldName[name] = Object.values(worldInfo.entries);
+                }
+              }),
+          );
 
-              const entriesGroupByWorldName: Record<string, WIEntry[]> = {};
-              world_names
-                .filter((name: string) => activeSession.selectedWorldNames.includes(name))
-                .forEach(async (name: string) => {
-                  const worldInfo = await globalContext.loadWorldInfo(name);
-                  if (worldInfo) {
-                    entriesGroupByWorldName[name] = Object.values(worldInfo.entries);
-                  }
-                });
+          // For draft fields, prepare session with specific prompt
+          let sessionForGeneration: Session;
 
-              // Call generation function
-              const generatedContent = await runCharacterFieldGeneration({
-                profileId: settings.profileId,
-                userPrompt: userPrompt,
-                buildPromptOptions: buildPromptOptions,
-                contextToSend: settings.contextToSend,
-                session: activeSession,
-                allCharacters: context.characters,
-                entriesGroupByWorldName: entriesGroupByWorldName,
-                promptSettings: settings.prompts,
-                formatDescription: {
-                  content: formatDescription,
-                },
-                mainContextTemplate: settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].content,
-                maxResponseToken: settings.maxResponseToken,
-                targetField: targetField,
-                outputFormat: settings.outputFormat,
-              });
+          // Create a new fields object with proper typing
+          // @ts-ignore
+          const typedFields: Record<CharacterFieldName, CharacterField> = {};
+          for (const field of CHARACTER_FIELDS) {
+            typedFields[field] = {
+              prompt: activeSession.fields[field].prompt,
+              value: activeSession.fields[field].value,
+              label: CHARACTER_LABELS[field],
+            };
+          }
 
-              textarea.value = generatedContent;
-              textarea.dispatchEvent(new Event('change'));
-            } catch (error: any) {
-              console.error(`Error generating field ${targetField}:`, error);
-              st_echo('error', `Failed to generate ${targetField}: ${error.message || error}`);
-            } finally {
-              button.disabled = false;
-              button.innerHTML = originalIcon;
-            }
+          sessionForGeneration = {
+            ...activeSession,
+            fields: typedFields,
+          };
+
+          const generatedContent = await runCharacterFieldGeneration({
+            profileId: settings.profileId,
+            userPrompt: userPrompt,
+            buildPromptOptions: buildPromptOptions,
+            contextToSend: settings.contextToSend,
+            session: sessionForGeneration,
+            allCharacters: context.characters,
+            entriesGroupByWorldName: entriesGroupByWorldName,
+            promptSettings: settings.prompts,
+            formatDescription: {
+              content: formatDescription,
+            },
+            mainContextTemplate: settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].content,
+            maxResponseToken: settings.maxResponseToken,
+            targetField: targetField,
+            outputFormat: settings.outputFormat,
+          });
+
+          textarea.value = generatedContent;
+          textarea.dispatchEvent(new Event('change'));
+        } catch (error: any) {
+          console.error(`Error generating field ${targetField}:`, error);
+          st_echo('error', `Failed to generate ${targetField}: ${error.message || error}`);
+        } finally {
+          button.disabled = false;
+          button.innerHTML = originalIcon;
+        }
+      }
+
+      // Setup core field event listeners
+      Object.entries(coreFieldElements).forEach(([fieldName, { textarea, button, promptTextarea }]) => {
+        if (button) {
+          button.addEventListener('click', () => {
+            handleFieldGeneration({
+              targetField: fieldName as CharacterFieldName,
+              button,
+              textarea,
+            });
           });
 
           textarea.addEventListener('change', () => {

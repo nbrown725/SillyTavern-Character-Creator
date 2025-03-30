@@ -28,6 +28,8 @@
   /* Main Prompt Area */
   /* Character Field Styling */
   /* Utility: Disable interaction */
+  /* Tab Styles */
+  /* Utility styles */
 }
 #charCreatorPopup h2 {
   text-align: center;
@@ -153,16 +155,11 @@
   border-radius: 5px;
   border: 1px solid var(--SmartThemeBorderColor);
   font-size: 0.9em;
-  color: var(--SmartThemeSubtleColor);
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
-#charCreatorPopup .selector-summary:hover {
-  background-color: var(--SmartThemeFormHoverBgColor);
-}
 #charCreatorPopup .selector-summary i {
   margin-left: 10px;
-  color: var(--SmartThemeSubtleColor);
 }
 #charCreatorPopup #charCreator_maxTokens_container {
   display: none;
@@ -188,23 +185,14 @@
   justify-content: center;
 }
 #charCreatorPopup .character-field-actions button:hover {
-  background-color: var(--SmartThemeFormHoverBgColor);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px var(--SmartThemeShadowColor);
 }
 #charCreatorPopup .character-field-actions button#charCreator_saveAsNewCharacter {
-  background-color: var(--accent);
   color: white;
-}
-#charCreatorPopup .character-field-actions button#charCreator_saveAsNewCharacter:hover {
-  background-color: color-mix(in srgb, var(--accent) 85%, white);
 }
 #charCreatorPopup .character-field-actions button#charCreator_reset {
   border-color: var(--SmartThemeBorderColor);
-}
-#charCreatorPopup .character-field-actions button#charCreator_reset:hover {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 #charCreatorPopup #charCreator_outputFormat {
   margin-top: 5px;
@@ -244,18 +232,14 @@
 #charCreatorPopup .character-field .field-container.large-field textarea {
   min-height: 120px;
 }
-#charCreatorPopup .character-field .field-container .generate-field-button {
+#charCreatorPopup .character-field .field-container .generate-field-button, #charCreatorPopup .character-field .field-container .delete-draft-field-button {
   flex-shrink: 0;
   padding: 5px 8px;
   font-size: 0.9em;
   height: 30px;
   line-height: 1.5;
-  background-color: var(--accent);
 }
-#charCreatorPopup .character-field .field-container .generate-field-button:hover {
-  background-color: color-mix(in srgb, var(--accent) 85%, white);
-}
-#charCreatorPopup .character-field .field-container .generate-field-button:disabled .fa-solid {
+#charCreatorPopup .character-field .field-container .generate-field-button:disabled .fa-solid, #charCreatorPopup .character-field .field-container .delete-draft-field-button:disabled .fa-solid {
   animation: spin 1s linear infinite;
 }
 #charCreatorPopup .character-field .field-prompt-container {
@@ -283,4 +267,56 @@
   opacity: 0.6;
   cursor: not-allowed;
   pointer-events: none;
+}
+#charCreatorPopup .tab-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid var(--SmartThemeBorderColor);
+  padding-bottom: 10px;
+  align-items: center;
+  /* Align Add button vertically */
+  justify-content: flex-start;
+}
+#charCreatorPopup .tab-buttons .right-aligned {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+#charCreatorPopup .tab-buttons .right-aligned .menu_button {
+  width: auto;
+}
+#charCreatorPopup .tab-buttons .tab-button {
+  background-color: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 8px 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px 4px 0 0;
+  /* Slight rounding at top */
+}
+#charCreatorPopup .tab-buttons .tab-button:hover {
+  background-color: var(--white30a);
+}
+#charCreatorPopup .tab-buttons .tab-button.active {
+  font-weight: 500;
+}
+#charCreatorPopup .tab-content-area {
+  position: relative;
+  /* Optional: for potential future absolute positioning inside */
+}
+#charCreatorPopup .tab-content {
+  display: none;
+  /* Hide tabs by default */
+  /* Remove bottom margin from card when used as tab content */
+  margin-bottom: 0;
+}
+#charCreatorPopup .tab-content.active {
+  display: block;
+  /* Show active tab */
+}
+#charCreatorPopup .subtle {
+  font-size: 0.9em;
+  margin-bottom: 15px;
 }

@@ -175,8 +175,6 @@
                     placeholder="Add specific instructions here (e.g., 'Make the description sound mysterious', 'Focus on their childhood trauma for personality'). This applies to the next field you generate."
                     rows="4"
                 ></textarea>
-                <!-- Maybe repurpose this button later or remove -->
-                <!-- <button id="charCreator_sendPrompt" class="menu_button interactable">Generate All (Experimental)</button> -->
             </div>
         </div>
 
@@ -193,26 +191,79 @@
                 </button>
                 <div id="charCreator_loadCharSelector" style="width: 200px" title="Load Character Data"></div>
             </div>
-            <div class="card">
-                <h3>Character Fields</h3>
-                <!-- Character Field Template -->
-                <template id="charCreator_fieldTemplate">
-                    <div class="character-field">
-                        <label></label>
-                        <div class="field-container">
-                            <textarea class="text_pole textarea_compact"></textarea>
-                            <button class="menu_button generate-field-button">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            </button>
-                        </div>
-                        <div class="field-prompt-container">
-                            <textarea class="text_pole textarea_compact field-prompt" rows="2"></textarea>
-                        </div>
-                    </div>
-                </template>
 
-                <!-- Character Fields Container -->
-                <div id="charCreator_fieldsContainer"></div>
+            <!-- Tab Buttons -->
+            <div class="tab-buttons">
+                <button class="menu_button tab-button active" data-tab="charCreator_coreFieldsContainer">
+                    Core Fields
+                </button>
+                <button class="menu_button tab-button" data-tab="charCreator_draftFieldsContainer">Draft Fields</button>
+                <div class="right-aligned">
+                    <button id="charCreator_addDraftField" class="menu_button" title="Add a temporary draft field">
+                        <i class="fa-solid fa-plus"></i> Add Draft Field
+                    </button>
+                    <button id="charCreator_exportDraftFields" class="menu_button" title="Export draft fields">
+                        <i class="fa-solid fa-file-export" style="margin-right: 10px"></i> Export
+                    </button>
+                    <button id="charCreator_importDraftFields" class="menu_button" title="Import draft fields">
+                        <i class="fa-solid fa-file-import" style="margin-right: 10px"></i> Import
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Content Area -->
+            <div class="tab-content-area">
+                <!-- Core Fields Tab -->
+                <div id="charCreator_coreFieldsContainer" class="card tab-content active">
+                    <h3>Core Character Fields</h3>
+                    <!-- Core Character Field Template -->
+                    <template id="charCreator_coreFieldTemplate">
+                        <div class="character-field core-field">
+                            <label></label>
+                            <div class="field-container">
+                                <textarea class="text_pole textarea_compact field-value-textarea" rows="3"></textarea>
+                                <button class="menu_button generate-field-button" title="Generate field content">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                </button>
+                            </div>
+                            <div class="field-prompt-container">
+                                <textarea class="text_pole textarea_compact field-prompt-textarea" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Draft Fields Tab -->
+                <div id="charCreator_draftFieldsContainer" class="card tab-content">
+                    <h3>Draft Fields (Temporary)</h3>
+                    <p class="subtle">
+                        These fields are temporary and only used to keep AI informed about the character. They won't be
+                        saved to the character card.
+                    </p>
+                    <!-- Draft Field Template -->
+                    <template id="charCreator_draftFieldTemplate">
+                        <div class="character-field draft-field">
+                            <div class="draft-field-header">
+                                <label></label>
+                            </div>
+                            <div class="field-container">
+                                <textarea class="text_pole textarea_compact field-value-textarea" rows="3"></textarea>
+                                <div style="display: flex; flex-direction: column">
+                                    <button class="menu_button generate-field-button" title="Generate field content">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    </button>
+                                    <button class="menu_button delete-draft-field-button" title="Delete Draft Field">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="field-prompt-container">
+                                <textarea class="text_pole textarea_compact field-prompt-textarea" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </template>
+                    <div id="charCreator_draftFieldsList"></div>
+                </div>
             </div>
         </div>
     </div>

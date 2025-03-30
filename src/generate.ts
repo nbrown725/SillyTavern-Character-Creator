@@ -22,15 +22,26 @@ export const CHARACTER_FIELDS: CharacterFieldName[] = [
   'mes_example',
 ];
 
+export const CHARACTER_LABELS: Record<CharacterFieldName, string> = {
+  name: 'Name',
+  description: 'Description',
+  personality: 'Personality',
+  scenario: 'Scenario',
+  first_mes: 'First Message',
+  mes_example: 'Example Dialogue',
+};
+
 export interface CharacterField {
   prompt: string;
   value: string;
+  label: string;
 }
 
 export interface Session {
   selectedCharacterIndexes: string[];
   selectedWorldNames: string[];
   fields: Record<CharacterFieldName, CharacterField>;
+  draftFields: Record<string, CharacterField>;
 }
 
 export interface ContextToSend {
@@ -66,7 +77,7 @@ export interface RunCharacterFieldGenerationParams {
   };
   mainContextTemplate: string;
   maxResponseToken: number;
-  targetField: CharacterFieldName;
+  targetField: CharacterFieldName | string;
   outputFormat: 'xml' | 'json' | 'none';
 }
 
@@ -163,14 +174,33 @@ export async function runCharacterFieldGeneration({
   }
 
   // Add Current Field Values (if enabled)
-  if (contextToSend.existingFields && session.fields && Object.keys(session.fields).length > 0) {
-    const template = Handlebars.compile(promptSettings.existingFieldsDefinition.content, { noEscape: true });
-    const fields: Record<string, string> = Object.fromEntries(
-      Object.entries(session.fields).map(([fieldName, field]) => [fieldName, field.value]),
-    );
-    const existingFieldsPrompt = template({ fields });
-    if (existingFieldsPrompt) {
-      templateData['existingFields'] = existingFieldsPrompt;
+  if (
+    contextToSend.existingFields &&
+    (session.fields || session.draftFields) &&
+    (Object.keys(session.fields).length > 0 || Object.keys(session.draftFields).length > 0)
+  ) {
+    try {
+      const template = Handlebars.compile(promptSettings.existingFieldsDefinition.content, { noEscape: true });
+      const coreFields: Record<string, string> = Object.fromEntries(
+        Object.entries(session.fields).map(([fieldName, field]) => [field.label, field.value]),
+      );
+      const draftFields: Record<string, string> = Object.fromEntries(
+        Object.entries(session.draftFields || {}).map(([fieldName, field]) => [field.label, field.value]),
+      );
+
+      // Combine core and draft fields for the template context
+      const allFields = {
+        core: coreFields,
+        draft: draftFields,
+      };
+
+      const existingFieldsPrompt = template({ fields: allFields });
+      if (existingFieldsPrompt) {
+        templateData['existingFields'] = existingFieldsPrompt;
+      }
+    } catch (error: any) {
+      console.error('Error compiling or executing Handlebars template for existing fields:', error);
+      throw new Error(`Error compiling or executing Handlebars template for existing fields: ${error.message}`);
     }
   }
 
@@ -182,7 +212,8 @@ export async function runCharacterFieldGeneration({
     const template = Handlebars.compile(promptSettings.taskDescription.content, { noEscape: true });
     const taskDescriptionPrompt = template({
       userInstructions: processedUserPrompt,
-      fieldSpecificInstructions: session.fields[targetField].prompt,
+      // @ts-ignore
+      fieldSpecificInstructions: session.draftFields[targetField]?.prompt ?? session.fields[targetField]?.prompt,
       targetField,
     });
     if (taskDescriptionPrompt) {
