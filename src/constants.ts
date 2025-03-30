@@ -21,7 +21,7 @@ export const DEFAULT_MAIN_CONTEXT_TEMPLATE = `{{#if chatHistory}}
 {{#if outputFormatInstructions}}
 {{outputFormatInstructions}}
 {{/if}}
-[CREC_NEXT_MESSAGE]
+[CREC_NEXT_MESSAGE=user]
 {{#if taskDescription}}
 {{taskDescription}}
 {{/if}}`;

@@ -190,27 +190,61 @@ export async function runCharacterFieldGeneration({
     }
   }
 
-  const messages: Message[] = [];
-  {
-    // split by "[CREC_NEXT_MESSAGE]"
-    const parts = mainContextTemplate.split('[CREC_NEXT_MESSAGE]');
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i].trim();
-      if (part) {
-        const template = Handlebars.compile(part, { noEscape: true });
-        if (part.includes('{{chatHistory}}') && chatMessages.length > 0) {
-          const exist = template({ chatHistory: chatMessages.length > 0 ? chatMessages : undefined }).trim();
-          if (exist) {
-            messages.push(...chatMessages);
-          }
-        } else {
-          const message = template(templateData).trim();
-          if (message) {
-            messages.push({ role: 'system', content: message });
-          }
-        }
+  /**
+   * Helper function to process a content block from the template.
+   */
+  function processContentBlock(
+    contentBlock: string,
+    roleForBlock: string,
+    templateData: Record<string, any>, // Use a more specific type if possible
+    chatMessages: Message[],
+    targetMessagesArray: Message[],
+  ): void {
+    if (!contentBlock) {
+      return; // Skip empty blocks
+    }
+
+    const template = Handlebars.compile(contentBlock, { noEscape: true });
+
+    if (contentBlock.includes('{{chatHistory}}')) {
+      // Check if rendering results in non-empty output *and* chat messages exist
+      const renderedCheck = template({ chatHistory: chatMessages.length > 0 ? chatMessages : undefined }).trim();
+      if (renderedCheck && chatMessages.length > 0) {
+        targetMessagesArray.push(...chatMessages); // Add chat history respecting its internal roles
+      }
+    } else {
+      // Handle regular content blocks
+      const renderedContent = template(templateData).trim();
+      if (renderedContent) {
+        // Basic role validation (adjust as needed for your specific supported roles)
+        const validRole = ['system', 'user', 'assistant'].includes(roleForBlock) ? roleForBlock : 'system';
+        targetMessagesArray.push({ role: validRole, content: renderedContent });
       }
     }
+  }
+
+  const messages: Message[] = [];
+  {
+    const separatorRegex = /\[CREC_NEXT_MESSAGE(?:=([a-zA-Z]+))?\]/g;
+    const defaultRole = 'system'; // Default role if not specified
+    let lastIndex = 0;
+    let roleForNextBlock = defaultRole; // Role determined by the *previous* separator (or default)
+
+    let match;
+    while ((match = separatorRegex.exec(mainContextTemplate)) !== null) {
+      const contentBlock = mainContextTemplate.substring(lastIndex, match.index).trim();
+
+      // Process the block *before* the separator using the role determined by the PREVIOUS separator
+      processContentBlock(contentBlock, roleForNextBlock, templateData, chatMessages, messages);
+
+      // Determine role for the block *after* this separator
+      roleForNextBlock = match[1]?.toLowerCase() || defaultRole; // Use captured role or default, normalize
+      lastIndex = separatorRegex.lastIndex;
+    }
+
+    // Process the final content block after the last separator
+    const finalContentBlock = mainContextTemplate.substring(lastIndex).trim();
+    processContentBlock(finalContentBlock, roleForNextBlock, templateData, chatMessages, messages);
   }
 
   // console.log("Sending messages:", JSON.stringify(messages, null, 2)); // For debugging
