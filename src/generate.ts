@@ -1,8 +1,9 @@
-import { buildPrompt, BuildPromptOptions, Message } from 'sillytavern-utils-lib';
-import { ChatCompletionMessage, ExtractedData } from 'sillytavern-utils-lib/types';
+import { buildPrompt, BuildPromptOptions, ExtensionSettingsManager, Message } from 'sillytavern-utils-lib';
+import { ExtractedData } from 'sillytavern-utils-lib/types';
 import { parseResponse } from './parsers.js';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
+import { ExtensionSettings } from './settings.js';
 
 // @ts-ignore
 import { Handlebars } from '../../../../../lib.js';
@@ -48,6 +49,9 @@ export interface ContextToSend {
   worldInfo: boolean;
 }
 
+// @ts-ignore
+const dumbSettings = new ExtensionSettingsManager<ExtensionSettings>('dumb', {}).getSettings();
+
 export interface RunCharacterFieldGenerationParams {
   profileId: string;
   userPrompt: string;
@@ -56,13 +60,9 @@ export interface RunCharacterFieldGenerationParams {
   session: Session;
   allCharacters: Character[];
   entriesGroupByWorldName: Record<string, WIEntry[]>;
-  promptSettings: {
-    stCharCardPrompt: string;
-    charCardDefinitionPrompt: string;
-    lorebookDefinitionPrompt: string;
-    existingFieldsDefinitionPrompt: string;
-    taskDescriptionPrompt: string;
-    formatDescription: string;
+  promptSettings: typeof dumbSettings.prompts;
+  formatDescription: {
+    content: string;
   };
   mainContextTemplate: string;
   maxResponseToken: number;
@@ -79,6 +79,7 @@ export async function runCharacterFieldGeneration({
   allCharacters,
   entriesGroupByWorldName,
   promptSettings,
+  formatDescription,
   mainContextTemplate,
   maxResponseToken,
   targetField,
@@ -94,26 +95,25 @@ export async function runCharacterFieldGeneration({
 
   const processedUserPrompt = globalContext.substituteParams(userPrompt.trim());
 
-  // const messages: ChatCompletionMessage[] = [];
   const selectedApi = profile.api ? globalContext.CONNECT_API_MAP[profile.api].selected : undefined;
   if (!selectedApi) {
     throw new Error(`Could not determine API for profile "${profile.name}".`);
   }
 
-  const templateData: Record<string, string | Array<Message> | undefined> = {};
+  const templateData: Record<string, string | undefined> = {};
 
   // Build base prompt (system, memory, messages, persona - if applicable)
   const chatMessages = await buildPrompt(selectedApi, buildPromptOptions);
 
   // Add ST/Character Card Description
   if (contextToSend.stDescription) {
-    templateData['stDescription'] = promptSettings.stCharCardPrompt;
+    templateData['stDescription'] = promptSettings.stCharCard.content;
   }
 
   // Add Definitions of Selected Characters (if enabled and characters selected)
   if (contextToSend.charCard && session.selectedCharacterIndexes.length > 0) {
     try {
-      const template = Handlebars.compile(promptSettings.charCardDefinitionPrompt, { noEscape: true });
+      const template = Handlebars.compile(promptSettings.charDefinition.content, { noEscape: true });
       const charactersData: Array<Character> = [];
       session.selectedCharacterIndexes.forEach((charIndex) => {
         const charIndexNumber = parseInt(charIndex);
@@ -137,7 +137,7 @@ export async function runCharacterFieldGeneration({
   // Add Definitions of Selected Lorebooks (World Info)
   if (contextToSend.worldInfo && session.selectedWorldNames.length > 0) {
     try {
-      const template = Handlebars.compile(promptSettings.lorebookDefinitionPrompt, { noEscape: true });
+      const template = Handlebars.compile(promptSettings.lorebookDefinition.content, { noEscape: true });
       const lorebooksData: Record<string, WIEntry[]> = {};
       Object.entries(entriesGroupByWorldName)
         .filter(
@@ -164,7 +164,7 @@ export async function runCharacterFieldGeneration({
 
   // Add Current Field Values (if enabled)
   if (contextToSend.existingFields && session.fields && Object.keys(session.fields).length > 0) {
-    const template = Handlebars.compile(promptSettings.existingFieldsDefinitionPrompt, { noEscape: true });
+    const template = Handlebars.compile(promptSettings.existingFieldsDefinition.content, { noEscape: true });
     const fields: Record<string, string> = Object.fromEntries(
       Object.entries(session.fields).map(([fieldName, field]) => [fieldName, field.value]),
     );
@@ -175,11 +175,11 @@ export async function runCharacterFieldGeneration({
   }
 
   // Add Output Format Instructions
-  templateData['outputFormatInstructions'] = promptSettings.formatDescription;
+  templateData['outputFormatInstructions'] = formatDescription.content;
 
   // Construct and Add Final User Task
   {
-    const template = Handlebars.compile(promptSettings.taskDescriptionPrompt, { noEscape: true });
+    const template = Handlebars.compile(promptSettings.taskDescription.content, { noEscape: true });
     const taskDescriptionPrompt = template({
       userInstructions: processedUserPrompt,
       fieldSpecificInstructions: session.fields[targetField].prompt,

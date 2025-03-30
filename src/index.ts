@@ -124,10 +124,11 @@ async function handleSettingsUI() {
       settings.mainContextTemplatePresets['default'] = {
         content: DEFAULT_MAIN_CONTEXT_TEMPLATE,
       };
-      promptTextarea.value = DEFAULT_MAIN_CONTEXT_TEMPLATE;
       if (promptSelect.value !== 'default') {
+        promptSelect.value = 'default';
         promptSelect.dispatchEvent(new Event('change'));
       } else {
+        promptTextarea.value = DEFAULT_MAIN_CONTEXT_TEMPLATE;
         settingsManager.saveSettings();
       }
     });
@@ -209,9 +210,9 @@ async function handleSettingsUI() {
       },
       onSelectChange(_, newValue) {
         const newPresetValue = newValue ?? '';
-        const prompSetting: PromptSetting | undefined = settings.prompts[newPresetValue];
-        if (prompSetting) {
-          promptTextarea.value = prompSetting.content ?? '';
+        const promptSetting: PromptSetting | undefined = settings.prompts[newPresetValue];
+        if (promptSetting) {
+          promptTextarea.value = promptSetting.content ?? '';
           restoreSystemPromptButton.style.display = SYSTEM_PROMPT_KEYS.includes(newPresetValue) ? 'block' : 'none';
           settingsManager.saveSettings();
         }
@@ -937,13 +938,9 @@ async function handlePopupUI() {
                 session: activeSession,
                 allCharacters: context.characters,
                 entriesGroupByWorldName: entriesGroupByWorldName,
-                promptSettings: {
-                  stCharCardPrompt: settings.prompts.stCharCard.content,
-                  charCardDefinitionPrompt: settings.prompts.charDefinition.content,
-                  lorebookDefinitionPrompt: settings.prompts.lorebookDefinition.content,
-                  formatDescription: formatDescription,
-                  existingFieldsDefinitionPrompt: settings.prompts.existingFieldsDefinition.content,
-                  taskDescriptionPrompt: settings.prompts.taskDescription.content,
+                promptSettings: settings.prompts,
+                formatDescription: {
+                  content: formatDescription,
                 },
                 mainContextTemplate: settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].content,
                 maxResponseToken: settings.maxResponseToken,

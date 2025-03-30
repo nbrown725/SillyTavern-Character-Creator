@@ -126,7 +126,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
   // Updated prompts structure
   prompts: {
-    stCharCard: { content: DEFAULT_PROMPT_CONTENTS.stCharCard, isDefault: true, label: 'ST/Char Card Description' },
+    stCharCard: {
+      content: DEFAULT_PROMPT_CONTENTS.stCharCard,
+      isDefault: true,
+      label: 'ST/Char Card Description',
+    },
     charDefinition: {
       content: DEFAULT_PROMPT_CONTENTS.charDefinition,
       isDefault: true,
@@ -137,8 +141,16 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
       isDefault: true,
       label: 'Lorebook Definition Template',
     },
-    xmlFormat: { content: DEFAULT_PROMPT_CONTENTS.xmlFormat, isDefault: true, label: 'XML Format Description' },
-    jsonFormat: { content: DEFAULT_PROMPT_CONTENTS.jsonFormat, isDefault: true, label: 'JSON Format Description' },
+    xmlFormat: {
+      content: DEFAULT_PROMPT_CONTENTS.xmlFormat,
+      isDefault: true,
+      label: 'XML Format Description',
+    },
+    jsonFormat: {
+      content: DEFAULT_PROMPT_CONTENTS.jsonFormat,
+      isDefault: true,
+      label: 'JSON Format Description',
+    },
     noneFormat: {
       content: DEFAULT_PROMPT_CONTENTS.noneFormat,
       isDefault: true,
