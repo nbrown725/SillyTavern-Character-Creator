@@ -1,4 +1,5 @@
 import {
+  applyWorldInfoEntry,
   buildFancyDropdown,
   buildPresetSelect,
   BuildPromptOptions,
@@ -23,6 +24,7 @@ import {
   DEFAULT_JSON_FORMAT_DESC,
   DEFAULT_LOREBOOK_DEFINITION,
   DEFAULT_NONE_FORMAT_DESC,
+  DEFAULT_WORLD_INFO_CHARACTER_DEFINITION,
   DEFAULT_XML_FORMAT_DESC,
 } from './constants.js';
 
@@ -115,6 +117,45 @@ async function handleSettingsUI() {
   setupPromptArea('xmlFormatDesc', 'xmlFormatDesc', DEFAULT_XML_FORMAT_DESC, 'usingDefaultXmlFormatDesc');
   setupPromptArea('jsonFormatDesc', 'jsonFormatDesc', DEFAULT_JSON_FORMAT_DESC, 'usingDefaultJsonFormatDesc');
   setupPromptArea('noneFormatDesc', 'noneFormatDesc', DEFAULT_NONE_FORMAT_DESC, 'usingDefaultNoneFormatDesc');
+
+  // Setup World Info Settings
+  const showSaveAsWorldInfoCheckbox = settingsContainer.querySelector(
+    '#charCreator_showSaveAsWorldInfo',
+  ) as HTMLInputElement;
+  if (showSaveAsWorldInfoCheckbox) {
+    showSaveAsWorldInfoCheckbox.checked = settings.showSaveAsWorldInfoEntry.show;
+    showSaveAsWorldInfoCheckbox.addEventListener('change', () => {
+      settings.showSaveAsWorldInfoEntry.show = showSaveAsWorldInfoCheckbox.checked;
+      settingsManager.saveSettings();
+    });
+  }
+
+  // Setup World Info Character Definition
+  const worldInfoContainer = settingsContainer.querySelector('.worldInfoCharacterDefinition');
+  if (worldInfoContainer) {
+    const textarea = worldInfoContainer.querySelector('textarea') as HTMLTextAreaElement;
+    const restoreButton = worldInfoContainer.querySelector('.restore_default') as HTMLButtonElement;
+
+    textarea.value = settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt;
+
+    restoreButton.addEventListener('click', async () => {
+      const confirm = await globalContext.Popup.show.confirm(
+        'Character Creator',
+        'Are you sure you want to restore the default World Info Character Definition template?',
+      );
+      if (confirm) {
+        textarea.value = DEFAULT_WORLD_INFO_CHARACTER_DEFINITION;
+        textarea.dispatchEvent(new Event('change'));
+      }
+    });
+
+    textarea.addEventListener('change', () => {
+      settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt = textarea.value;
+      settings.showSaveAsWorldInfoEntry.usingDefaultCharacterDefinitionPrompt =
+        textarea.value === DEFAULT_WORLD_INFO_CHARACTER_DEFINITION;
+      settingsManager.saveSettings();
+    });
+  }
 }
 
 async function handlePopupUI() {
@@ -605,6 +646,75 @@ async function handlePopupUI() {
         }
       });
 
+      const saveAsWorldInfoEntrySelector = popupContainer.querySelector(
+        '#charCreator_saveAsWorldInfoSelector',
+      ) as HTMLSelectElement;
+
+      // Hide the selector if the feature is disabled in settings
+      if (!settings.showSaveAsWorldInfoEntry.show) {
+        saveAsWorldInfoEntrySelector.style.display = 'none';
+      } else {
+        const { close } = buildFancyDropdown(saveAsWorldInfoEntrySelector, {
+          placeholderText: 'Save as World Info Entry',
+          initialList: world_names,
+          closeOnSelect: true,
+          multiple: false,
+          enableSearch: true,
+          async onBeforeSelection(_currentValues, proposedValues) {
+            if (proposedValues.length === 0) return false;
+
+            const character: Character = {
+              name: activeSession.fields.name.value,
+              description: activeSession.fields.description.value,
+              first_mes: activeSession.fields.first_mes.value,
+              scenario: activeSession.fields.scenario.value,
+              personality: activeSession.fields.personality.value,
+              mes_example: activeSession.fields.mes_example.value,
+              avatar: 'none',
+            };
+            if (!character.name) {
+              st_echo('warning', 'Please enter a name for the character.');
+              close();
+              return false;
+            }
+
+            let content: string = '';
+            try {
+              const template = Handlebars.compile(settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt, {
+                noEscape: true,
+              });
+              content = template({ character });
+            } catch (error: any) {
+              console.error(`Failed to compile character definition prompt: ${error.message}`);
+              st_echo('error', `Failed to compile character definition prompt: ${error.message}`);
+              close();
+              return false;
+            }
+
+            const selectedWorldName = proposedValues[0];
+            const wiEntry: WIEntry = {
+              uid: -1, // not necessary
+              key: [activeSession.fields.name.value],
+              content,
+              comment: activeSession.fields.name.value,
+            };
+            try {
+              await applyWorldInfoEntry({
+                entry: wiEntry,
+                selectedWorldName: selectedWorldName,
+                operation: 'add',
+              });
+              st_echo('success', 'Entry added');
+            } catch (error: any) {
+              st_echo('error', `Failed to create world info entry: ${error.message}`);
+            }
+
+            close();
+            return false;
+          },
+        });
+      }
+
       // --- Generation Logic ---
       Object.entries(fieldElements).forEach(([fieldName, { textarea, button, promptTextarea }]) => {
         if (button) {
@@ -809,6 +919,16 @@ if (!stagingCheck()) {
         checkAndUpdateDefault('xmlFormatDesc', DEFAULT_XML_FORMAT_DESC, 'usingDefaultXmlFormatDesc');
         checkAndUpdateDefault('jsonFormatDesc', DEFAULT_JSON_FORMAT_DESC, 'usingDefaultJsonFormatDesc');
         checkAndUpdateDefault('noneFormatDesc', DEFAULT_NONE_FORMAT_DESC, 'usingDefaultNoneFormatDesc');
+
+        // Check and update World Info character definition template
+        if (
+          settings.showSaveAsWorldInfoEntry.usingDefaultCharacterDefinitionPrompt &&
+          settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt !== DEFAULT_WORLD_INFO_CHARACTER_DEFINITION
+        ) {
+          console.log(`[${extensionName}] Updating default for World Info character definition template`);
+          settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt = DEFAULT_WORLD_INFO_CHARACTER_DEFINITION;
+          settingsChanged = true;
+        }
 
         if (settingsChanged) {
           console.log(`[${extensionName}] Saving updated default settings.`);

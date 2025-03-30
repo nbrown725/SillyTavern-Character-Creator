@@ -131,12 +131,9 @@ export async function runCharacterFieldGeneration({
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error compiling or executing Handlebars template for character definitions:', error);
-      messages.push({
-        role: 'system',
-        content: 'Error: Could not generate character definitions for context.',
-      });
+      throw new Error(`Error compiling or executing Handlebars template for character definitions: ${error.message}`);
     }
   }
   // Add Definitions of Selected Lorebooks (World Info)
@@ -159,9 +156,9 @@ export async function runCharacterFieldGeneration({
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error compiling or executing Handlebars template for lorebook definitions:', error);
-      messages.push({ role: 'system', content: 'Error: Could not generate lorebook definitions for context.' });
+      throw new Error(`Error compiling or executing Handlebars template for lorebook definitions: ${error.message}`);
     }
   }
 

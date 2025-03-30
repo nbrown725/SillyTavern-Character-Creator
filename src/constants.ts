@@ -168,3 +168,11 @@ Content: {{#if entry.content}}{{entry.content}}{{else}}*No content*{{/if}}
     {{/each}}
   {{/if}}
 {{/each}}`;
+
+export const DEFAULT_WORLD_INFO_CHARACTER_DEFINITION = `### {{character.name}}
+- **Description:** {{#if character.description}}{{character.description}}{{else}}*Not provided*{{/if}}
+- **Personality:** {{#if character.personality}}{{character.personality}}{{else}}*Not provided*{{/if}}
+- **Scenario:** {{#if character.scenario}}{{character.scenario}}{{else}}*Not provided*{{/if}}
+- **First Message:** {{#if character.first_mes}}{{character.first_mes}}{{else}}*Not provided*{{/if}}
+- **Example Dialogue:**
+  {{#if character.mes_example}}{{character.mes_example}}{{else}}*Not provided*{{/if}}`;

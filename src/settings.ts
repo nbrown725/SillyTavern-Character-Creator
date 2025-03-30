@@ -6,6 +6,7 @@ import {
   DEFAULT_XML_FORMAT_DESC,
   DEFAULT_JSON_FORMAT_DESC,
   DEFAULT_NONE_FORMAT_DESC,
+  DEFAULT_WORLD_INFO_CHARACTER_DEFINITION,
 } from './constants.js';
 import { ContextToSend } from './generate.js';
 
@@ -54,6 +55,13 @@ export interface ExtensionSettings {
   // Generic Prompt Presets
   promptPreset: string;
   promptPresets: Record<string, PromptPreset>;
+
+  // World Info
+  showSaveAsWorldInfoEntry: {
+    show: boolean;
+    characterDefinitionPrompt: string;
+    usingDefaultCharacterDefinitionPrompt: boolean;
+  };
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -105,6 +113,13 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
       content:
         'Generate the field content based on the chat history and existing character details. Be creative but consistent.',
     },
+  },
+
+  // World Info
+  showSaveAsWorldInfoEntry: {
+    show: false,
+    characterDefinitionPrompt: DEFAULT_WORLD_INFO_CHARACTER_DEFINITION,
+    usingDefaultCharacterDefinitionPrompt: true,
   },
 };
 
