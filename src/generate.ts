@@ -65,7 +65,6 @@ export interface RunCharacterFieldGenerationParams {
   maxResponseToken: number;
   targetField: CharacterFieldName;
   outputFormat: 'xml' | 'json' | 'none';
-  currentFieldValues: Record<CharacterFieldName, CharacterField>;
 }
 
 export async function runCharacterFieldGeneration({
@@ -80,7 +79,6 @@ export async function runCharacterFieldGeneration({
   maxResponseToken,
   targetField,
   outputFormat,
-  currentFieldValues,
 }: RunCharacterFieldGenerationParams): Promise<string> {
   if (!profileId) {
     throw new Error('No connection profile selected.');
@@ -113,21 +111,21 @@ export async function runCharacterFieldGeneration({
   if (contextToSend.charCard && session.selectedCharacterIndexes.length > 0) {
     try {
       const template = Handlebars.compile(promptSettings.charCardDefinitionPrompt, { noEscape: true });
-      const charactersData: Record<number, Character> = {};
+      const charactersData: Array<Character> = [];
       session.selectedCharacterIndexes.forEach((charIndex) => {
         const charIndexNumber = parseInt(charIndex);
         const char = allCharacters[charIndexNumber];
         if (char) {
-          charactersData[charIndexNumber] = char;
+          charactersData.push(char);
         }
       });
 
-      if (Object.keys(charactersData).length > 0) {
+      if (charactersData.length > 0) {
         const charDefinitionsPrompt = template({ characters: charactersData });
         if (charDefinitionsPrompt) {
           messages.push({
             role: 'system', // Using system role for context seems appropriate
-            content: `=== CONTEXT FROM SELECTED CHARACTERS ===\n${charDefinitionsPrompt}`,
+            content: charDefinitionsPrompt,
           });
         }
       }
@@ -142,9 +140,14 @@ export async function runCharacterFieldGeneration({
       const template = Handlebars.compile(promptSettings.lorebookDefinitionPrompt, { noEscape: true });
       const lorebooksData: Record<string, WIEntry[]> = {};
       Object.entries(entriesGroupByWorldName)
-        .filter(([worldName, entries]) => entries.length > 0 && session.selectedWorldNames.includes(worldName))
+        .filter(
+          ([worldName, entries]) =>
+            entries.length > 0 &&
+            session.selectedWorldNames.includes(worldName) &&
+            entries.some((entry) => !entry.disable),
+        )
         .forEach(([worldName, entries]) => {
-          lorebooksData[worldName] = entries;
+          lorebooksData[worldName] = entries.filter((entry) => !entry.disable);
         });
 
       if (Object.keys(lorebooksData).length > 0) {
@@ -152,7 +155,7 @@ export async function runCharacterFieldGeneration({
         if (lorebookPrompt) {
           messages.push({
             role: 'system',
-            content: `=== CONTEXT FROM SELECTED LOREBOOKS (WORLD INFO) ===\n${lorebookPrompt}`,
+            content: lorebookPrompt,
           });
         }
       }

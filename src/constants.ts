@@ -111,20 +111,31 @@ Teaches the AI the character’s **speech patterns**, **formatting preferences**
 
 =======`;
 
-export const DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE = `{{#if characters}}
-## SELECTED CHARACTERS FOR CONTEXT
+export const DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE = `## Selected Characters for Context
 {{#each characters}}
-### Character: {{this.name}}
-- **Description:** {{#if this.description}}{{this.description}}{{else}}*Not provided*{{/if}}
-- **Personality:** {{#if this.personality}}{{this.personality}}{{else}}*Not provided*{{/if}}
-- **Scenario:** {{#if this.scenario}}{{this.scenario}}{{else}}*Not provided*{{/if}}
-- **First Message:** {{#if this.first_mes}}{{this.first_mes}}{{else}}*Not provided*{{/if}}
-- **Example Dialogue:**
-  {{#if this.mes_example}}{{this.mes_example}}{{else}}*Not provided*{{/if}}
+### {{this.name}}
+{{#if this.description}}
+#### Description
+{{this.description}}
+{{/if}}
+{{#if this.personality}}
+#### Personality
+{{this.personality}}
+{{/if}}
+{{#if this.scenario}}
+#### Scenario
+{{this.scenario}}
+{{/if}}
+{{#if this.first_mes}}
+#### First Message
+{{this.first_mes}}
+{{/if}}
+{{#if this.mes_example}}
+#### Example Dialogue
+{{this.mes_example}}
+{{/if}}
 
----
-{{/each}}
-{{/if}}`;
+{{/each}}`;
 
 export const DEFAULT_XML_FORMAT_DESC = `You MUST provide your response wrapped ONLY in a single <response> XML tag.
 
@@ -155,18 +166,17 @@ Example:
 Generated content for the field goes here.
 \`\`\``;
 
-export const DEFAULT_LOREBOOK_DEFINITION = `{{#each lorebooks}}
-  {{#if this.length}}
-## WORLD NAME: {{@key}}
-    {{#each this as |entry|}}
-      {{#unless entry.disable}}
-- {{entry.comment}}
+export const DEFAULT_LOREBOOK_DEFINITION = `## Selected Lorebooks for Context
+{{#each lorebooks}}
+### {{@key}}
+  {{#each this as |entry|}}
+#### {{#if entry.comment}}{{entry.comment}}{{else}}*No title*{{/if}}
 Triggers: {{#if entry.key}}{{join entry.key ', '}}{{else}}*No triggers*{{/if}}
 Content: {{#if entry.content}}{{entry.content}}{{else}}*No content*{{/if}}
 
-      {{/unless}}
-    {{/each}}
-  {{/if}}
+  {{/each}}
+
+
 {{/each}}`;
 
 export const DEFAULT_WORLD_INFO_CHARACTER_DEFINITION = `### {{character.name}}

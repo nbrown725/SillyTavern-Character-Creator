@@ -697,6 +697,7 @@ async function handlePopupUI() {
               key: [activeSession.fields.name.value],
               content,
               comment: activeSession.fields.name.value,
+              disable: false,
             };
             try {
               await applyWorldInfoEntry({
@@ -741,15 +742,6 @@ async function handlePopupUI() {
                 st_echo('warning', 'Connection profile not found.');
                 return;
               }
-
-              // @ts-ignore
-              const currentFieldValues: Record<CharacterFieldName, { value: string; prompt: string }> = {};
-              CHARACTER_FIELDS.forEach((fname) => {
-                currentFieldValues[fname] = {
-                  value: textarea.value,
-                  prompt: promptTextarea?.value || '',
-                };
-              });
 
               const buildPromptOptions: BuildPromptOptions = {
                 presetName: profile?.preset,
@@ -840,7 +832,6 @@ async function handlePopupUI() {
                 maxResponseToken: settings.maxResponseToken,
                 targetField: targetField,
                 outputFormat: settings.outputFormat,
-                currentFieldValues: currentFieldValues,
               });
 
               textarea.value = generatedContent;
@@ -915,6 +906,11 @@ if (!stagingCheck()) {
           'charCardDefinitionPrompt',
           DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
           'usingDefaultCharCardDefinitionPrompt',
+        );
+        checkAndUpdateDefault(
+          'lorebookDefinitionPrompt',
+          DEFAULT_LOREBOOK_DEFINITION,
+          'usingDefaultLorebookDefinitionPrompt',
         );
         checkAndUpdateDefault('xmlFormatDesc', DEFAULT_XML_FORMAT_DESC, 'usingDefaultXmlFormatDesc');
         checkAndUpdateDefault('jsonFormatDesc', DEFAULT_JSON_FORMAT_DESC, 'usingDefaultJsonFormatDesc');
