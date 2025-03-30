@@ -1,4 +1,4 @@
-import { buildPrompt, BuildPromptOptions } from 'sillytavern-utils-lib';
+import { buildPrompt, BuildPromptOptions, Message } from 'sillytavern-utils-lib';
 import { ChatCompletionMessage, ExtractedData } from 'sillytavern-utils-lib/types';
 import { parseResponse } from './parsers.js';
 import { Character } from 'sillytavern-utils-lib/types';
@@ -60,8 +60,11 @@ export interface RunCharacterFieldGenerationParams {
     stCharCardPrompt: string;
     charCardDefinitionPrompt: string;
     lorebookDefinitionPrompt: string;
+    existingFieldsDefinitionPrompt: string;
+    taskDescriptionPrompt: string;
     formatDescription: string;
   };
+  mainContextTemplate: string;
   maxResponseToken: number;
   targetField: CharacterFieldName;
   outputFormat: 'xml' | 'json' | 'none';
@@ -76,6 +79,7 @@ export async function runCharacterFieldGeneration({
   allCharacters,
   entriesGroupByWorldName,
   promptSettings,
+  mainContextTemplate,
   maxResponseToken,
   targetField,
   outputFormat,
@@ -90,21 +94,20 @@ export async function runCharacterFieldGeneration({
 
   const processedUserPrompt = globalContext.substituteParams(userPrompt.trim());
 
-  const messages: ChatCompletionMessage[] = [];
+  // const messages: ChatCompletionMessage[] = [];
   const selectedApi = profile.api ? globalContext.CONNECT_API_MAP[profile.api].selected : undefined;
   if (!selectedApi) {
     throw new Error(`Could not determine API for profile "${profile.name}".`);
   }
 
+  const templateData: Record<string, string | Array<Message> | undefined> = {};
+
   // Build base prompt (system, memory, messages, persona - if applicable)
-  messages.push(...(await buildPrompt(selectedApi, buildPromptOptions)));
+  const chatMessages = await buildPrompt(selectedApi, buildPromptOptions);
 
   // Add ST/Character Card Description
   if (contextToSend.stDescription) {
-    messages.push({
-      role: 'system',
-      content: promptSettings.stCharCardPrompt,
-    });
+    templateData['stDescription'] = promptSettings.stCharCardPrompt;
   }
 
   // Add Definitions of Selected Characters (if enabled and characters selected)
@@ -123,10 +126,7 @@ export async function runCharacterFieldGeneration({
       if (charactersData.length > 0) {
         const charDefinitionsPrompt = template({ characters: charactersData });
         if (charDefinitionsPrompt) {
-          messages.push({
-            role: 'system', // Using system role for context seems appropriate
-            content: charDefinitionsPrompt,
-          });
+          templateData['charDefinitions'] = charDefinitionsPrompt;
         }
       }
     } catch (error: any) {
@@ -153,10 +153,7 @@ export async function runCharacterFieldGeneration({
       if (Object.keys(lorebooksData).length > 0) {
         const lorebookPrompt = template({ lorebooks: lorebooksData });
         if (lorebookPrompt) {
-          messages.push({
-            role: 'system',
-            content: lorebookPrompt,
-          });
+          templateData['lorebookDefinitions'] = lorebookPrompt;
         }
       }
     } catch (error: any) {
@@ -167,45 +164,54 @@ export async function runCharacterFieldGeneration({
 
   // Add Current Field Values (if enabled)
   if (contextToSend.existingFields && session.fields && Object.keys(session.fields).length > 0) {
-    let existingFieldsPrompt = '=== CURRENT CHARACTER FIELD VALUES ===\n';
-    for (const field of CHARACTER_FIELDS) {
-      const fieldData = session.fields[field];
-      // Don't include the target field itself if it's empty, provide context from others
-      if (field !== targetField || (fieldData?.value && fieldData.value.trim() !== '')) {
-        existingFieldsPrompt += `- ${field}: ${fieldData?.value || '*Not filled*'}\n`;
-      }
+    const template = Handlebars.compile(promptSettings.existingFieldsDefinitionPrompt, { noEscape: true });
+    const fields: Record<string, string> = Object.fromEntries(
+      Object.entries(session.fields).map(([fieldName, field]) => [fieldName, field.value]),
+    );
+    const existingFieldsPrompt = template({ fields });
+    if (existingFieldsPrompt) {
+      templateData['existingFields'] = existingFieldsPrompt;
     }
-    messages.push({
-      role: 'system',
-      content: existingFieldsPrompt,
-    });
   }
 
   // Add Output Format Instructions
-  messages.push({
-    role: 'system',
-    content: `=== RESPONSE FORMAT INSTRUCTIONS ===\n${promptSettings.formatDescription}`,
-  });
+  templateData['outputFormatInstructions'] = promptSettings.formatDescription;
 
   // Construct and Add Final User Task
-  let taskDescription = `Your task is to generate the content for the "${targetField}" field of a character card.`;
-  taskDescription += ` Base your response on the chat history, persona (if provided), existing field values (if provided), context from other characters (if provided), and context from relevant lorebooks (if provided).`;
-
-  // Add field-specific prompt if exists
-  const fieldData = session.fields[targetField];
-  if (fieldData?.prompt) {
-    taskDescription += `\n\nField-specific instructions: ${fieldData.prompt}`;
+  {
+    const template = Handlebars.compile(promptSettings.taskDescriptionPrompt, { noEscape: true });
+    const taskDescriptionPrompt = template({
+      userInstructions: processedUserPrompt,
+      fieldSpecificInstructions: session.fields[targetField].prompt,
+      targetField,
+    });
+    if (taskDescriptionPrompt) {
+      templateData['taskDescription'] = taskDescriptionPrompt;
+    }
   }
 
-  // Add user's custom prompt if provided
-  if (processedUserPrompt) {
-    taskDescription += `\n\nFollow these specific instructions: ${processedUserPrompt}`;
+  const messages: Message[] = [];
+  {
+    // split by "[CREC_NEXT_MESSAGE]"
+    const parts = mainContextTemplate.split('[CREC_NEXT_MESSAGE]');
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i].trim();
+      if (part) {
+        const template = Handlebars.compile(part, { noEscape: true });
+        if (part.includes('{{chatHistory}}') && chatMessages.length > 0) {
+          const exist = template({ chatHistory: chatMessages.length > 0 ? chatMessages : undefined }).trim();
+          if (exist) {
+            messages.push(...chatMessages);
+          }
+        } else {
+          const message = template(templateData).trim();
+          if (message) {
+            messages.push({ role: 'system', content: message });
+          }
+        }
+      }
+    }
   }
-
-  messages.push({
-    role: 'user',
-    content: taskDescription,
-  });
 
   // console.log("Sending messages:", JSON.stringify(messages, null, 2)); // For debugging
 

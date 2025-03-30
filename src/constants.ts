@@ -1,3 +1,31 @@
+export const DEFAULT_MAIN_CONTEXT_TEMPLATE = `{{#if chatHistory}}
+{{chatHistory}}
+{{/if}}
+[CREC_NEXT_MESSAGE]
+{{#if stDescription}}
+{{stDescription}}
+{{/if}}
+[CREC_NEXT_MESSAGE]
+{{#if charDefinitions}}
+{{charDefinitions}}
+{{/if}}
+[CREC_NEXT_MESSAGE]
+{{#if lorebookDefinitions}}
+{{lorebookDefinitions}}
+{{/if}}
+[CREC_NEXT_MESSAGE]
+{{#if existingFields}}
+{{existingFields}}
+{{/if}}
+[CREC_NEXT_MESSAGE]
+{{#if outputFormatInstructions}}
+{{outputFormatInstructions}}
+{{/if}}
+[CREC_NEXT_MESSAGE]
+{{#if taskDescription}}
+{{taskDescription}}
+{{/if}}`;
+
 export const DEFAULT_CHAR_CARD_DESCRIPTION = `=======
 
 When creating a **character card** in SillyTavern, you can define a structured profile to guide the AI's behavior and ensure consistency in roleplay or storytelling. Below are the common fields and their purposes, based on community templates and best practices:
@@ -137,7 +165,8 @@ export const DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE = `## Selected Characters for
 
 {{/each}}`;
 
-export const DEFAULT_XML_FORMAT_DESC = `You MUST provide your response wrapped ONLY in a single <response> XML tag.
+export const DEFAULT_XML_FORMAT_DESC = `=== RESPONSE FORMAT INSTRUCTIONS ===
+You MUST provide your response wrapped ONLY in a single <response> XML tag.
 
 When providing code in your response, wrap it in triple backticks:
 
@@ -146,7 +175,8 @@ Example:
 <response>Generated content for the field goes here.</response>
 \`\`\``;
 
-export const DEFAULT_JSON_FORMAT_DESC = `You MUST provide your response as a JSON object with a single key "response" containing the generated content as a string.
+export const DEFAULT_JSON_FORMAT_DESC = `=== RESPONSE FORMAT INSTRUCTIONS ===
+You MUST provide your response as a JSON object with a single key "response" containing the generated content as a string.
 
 When providing code in your response, wrap it in triple backticks:
 
@@ -157,7 +187,8 @@ Example:
 }
 \`\`\``;
 
-export const DEFAULT_NONE_FORMAT_DESC = `You MUST provide ONLY the raw text content for the field, without any formatting, XML tags, JSON structure, or explanatory text. Just the content itself.
+export const DEFAULT_NONE_FORMAT_DESC = `=== RESPONSE FORMAT INSTRUCTIONS ===
+You MUST provide ONLY the raw text content for the field, without any formatting, XML tags, JSON structure, or explanatory text. Just the content itself.
 
 When providing code in your response, wrap it in triple backticks:
 
@@ -186,3 +217,21 @@ export const DEFAULT_WORLD_INFO_CHARACTER_DEFINITION = `### {{character.name}}
 - **First Message:** {{#if character.first_mes}}{{character.first_mes}}{{else}}*Not provided*{{/if}}
 - **Example Dialogue:**
   {{#if character.mes_example}}{{character.mes_example}}{{else}}*Not provided*{{/if}}`;
+
+export const DEFAULT_EXISTING_FIELDS_DEFINITION = `=== CURRENT CHARACTER FIELD VALUES ===
+- **Description:** {{#if fields.description}}{{fields.description}}{{else}}*Not provided*{{/if}}
+- **Personality:** {{#if fields.personality}}{{fields.personality}}{{else}}*Not provided*{{/if}}
+- **Scenario:** {{#if fields.scenario}}{{fields.scenario}}{{else}}*Not provided*{{/if}}
+- **First Message:** {{#if fields.first_mes}}{{fields.first_mes}}{{else}}*Not provided*{{/if}}
+- **Example Dialogue:**
+  {{#if fields.mes_example}}{{fields.mes_example}}{{else}}*Not provided*{{/if}}`;
+
+export const DEFAULT_TASK_DESCRIPTION = `Your task is to generate the content for the "{{targetField}}" field of a character card. Base your response on the preceding context (chat history, persona, system prompts, character/lore definitions, existing fields, etc.).
+{{#if userInstructions}}
+
+Follow these user instructions: {{userInstructions}}
+{{/if}}
+{{#if fieldSpecificInstructions}}
+
+Field-specific instructions: {{fieldSpecificInstructions}}
+{{/if}}`;

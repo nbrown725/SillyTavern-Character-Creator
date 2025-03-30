@@ -19,16 +19,15 @@ import {
 } from './generate.js';
 
 import {
-  DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
-  DEFAULT_CHAR_CARD_DESCRIPTION,
-  DEFAULT_JSON_FORMAT_DESC,
-  DEFAULT_LOREBOOK_DEFINITION,
-  DEFAULT_NONE_FORMAT_DESC,
-  DEFAULT_WORLD_INFO_CHARACTER_DEFINITION,
-  DEFAULT_XML_FORMAT_DESC,
-} from './constants.js';
-
-import { extensionName, settingsManager, ExtensionSettings, OutputFormat } from './settings.js';
+  extensionName,
+  settingsManager,
+  OutputFormat,
+  SYSTEM_PROMPT_KEYS,
+  DEFAULT_PROMPT_CONTENTS,
+  PromptSetting,
+  convertToVariableName,
+} from './settings.js';
+import { DEFAULT_MAIN_CONTEXT_TEMPLATE } from './constants.js';
 import { Character, FullExportData } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 
@@ -63,62 +62,205 @@ async function handleSettingsUI() {
 
   const settings = settingsManager.getSettings();
 
-  // Helper function to setup textareas and restore buttons
-  const setupPromptArea = (
-    selector: string,
-    settingKey: keyof ExtensionSettings,
-    defaultText: string,
-    defaultFlagKey: keyof ExtensionSettings,
-  ) => {
-    const container = settingsContainer.querySelector(`.${selector}`);
-    if (!container) return;
-    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-    const restoreButton = container.querySelector('.restore_default') as HTMLButtonElement;
+  // --- Setup Main Context Template ---
+  {
+    const promptSelect = settingsContainer.querySelector('#charCreator_mainContextTemplatePreset') as HTMLSelectElement;
+    const promptTextarea = settingsContainer.querySelector(
+      '#charCreator_mainContextTemplateContent',
+    ) as HTMLTextAreaElement;
+    const restoreMainContextTemplateButton = settingsContainer.querySelector(
+      '#charCreator_restoreMainContextTemplateDefault',
+    ) as HTMLButtonElement;
 
-    textarea.value = String(settings[settingKey]);
+    promptTextarea.value = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset]?.content;
+    buildPresetSelect('#charCreator_mainContextTemplatePreset', {
+      initialList: Object.keys(settings.mainContextTemplatePresets),
+      initialValue: settings.mainContextTemplatePreset,
+      readOnlyValues: ['default'],
+      onSelectChange(_, newValue) {
+        const newPresetValue = newValue ?? 'default';
+        promptTextarea.value = settings.mainContextTemplatePresets[newPresetValue].content;
 
-    restoreButton.addEventListener('click', async () => {
+        settings.mainContextTemplatePreset = newPresetValue;
+        settingsManager.saveSettings();
+      },
+      create: {
+        onAfterCreate(value) {
+          let currentPreset = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset];
+          if (!currentPreset) {
+            currentPreset = settings.mainContextTemplatePresets['default'];
+          }
+          settings.mainContextTemplatePresets[value] = structuredClone(currentPreset);
+        },
+      },
+      rename: {
+        onAfterRename(previousValue, newValue) {
+          settings.mainContextTemplatePresets[newValue] = settings.mainContextTemplatePresets[previousValue];
+          delete settings.mainContextTemplatePresets[previousValue];
+        },
+      },
+      delete: {
+        onAfterDelete(value) {
+          delete settings.mainContextTemplatePresets[value];
+        },
+      },
+    });
+
+    promptTextarea.addEventListener('change', () => {
+      const currentPreset = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset];
+      currentPreset.content = promptTextarea.value;
+      settingsManager.saveSettings();
+    });
+
+    restoreMainContextTemplateButton.addEventListener('click', async () => {
       const confirm = await globalContext.Popup.show.confirm(
-        'Character Creator',
-        `Are you sure you want to restore the default for "${container.querySelector('span')?.textContent}"?`,
+        'Restore default',
+        'Are you sure you want to restore the default prompt?',
       );
-      if (confirm) {
-        textarea.value = defaultText;
-        textarea.dispatchEvent(new Event('change'));
+      if (!confirm) {
+        return;
+      }
+
+      settings.mainContextTemplatePresets['default'] = {
+        content: DEFAULT_MAIN_CONTEXT_TEMPLATE,
+      };
+      promptTextarea.value = DEFAULT_MAIN_CONTEXT_TEMPLATE;
+      if (promptSelect.value !== 'default') {
+        promptSelect.dispatchEvent(new Event('change'));
+      } else {
+        settingsManager.saveSettings();
+      }
+    });
+  }
+
+  // --- Setup Consolidated System Prompts ---
+  {
+    const promptSelect = settingsContainer.querySelector('#charCreator_systemPromptPreset') as HTMLSelectElement;
+    const promptTextarea = settingsContainer.querySelector('#charCreator_systemPromptContent') as HTMLTextAreaElement;
+    const restoreSystemPromptButton = settingsContainer.querySelector(
+      '#charCreator_restoreSystemPromptDefault',
+    ) as HTMLButtonElement;
+
+    buildPresetSelect('#charCreator_systemPromptPreset', {
+      initialList: Object.keys(settings.prompts),
+      readOnlyValues: SYSTEM_PROMPT_KEYS,
+      initialValue: SYSTEM_PROMPT_KEYS[0],
+      label(value) {
+        if (value === '') {
+          return 'prompt';
+        }
+
+        const promptSetting = settings.prompts[value];
+        if (promptSetting) {
+          return `${promptSetting.label} (${value})`;
+        }
+        return value;
+      },
+      create: {
+        onBeforeCreate(value) {
+          const variableName = convertToVariableName(value);
+          if (!variableName) {
+            st_echo('error', `Invalid prompt name: ${value}`);
+            return false;
+          }
+          if (settings.prompts[variableName]) {
+            st_echo('error', `Prompt name already exists: ${variableName}`);
+            return false;
+          }
+
+          return true;
+        },
+        onAfterCreate(value) {
+          const variableName = convertToVariableName(value);
+          settings.prompts[variableName] = {
+            content: promptTextarea.value,
+            isDefault: false,
+            label: value,
+          };
+
+          return variableName;
+        },
+      },
+      rename: {
+        onBeforeRename(_previousValue, newValue) {
+          const variableName = convertToVariableName(newValue);
+          if (!variableName) {
+            st_echo('error', `Invalid prompt name: ${newValue}`);
+            return false;
+          }
+          if (settings.prompts[variableName]) {
+            st_echo('error', `Prompt name already exists: ${variableName}`);
+            return false;
+          }
+
+          return true;
+        },
+        onAfterRename(previousValue, newValue) {
+          const filteredValue = convertToVariableName(newValue);
+          settings.prompts[filteredValue] = { ...settings.prompts[previousValue], label: newValue };
+          delete settings.prompts[previousValue];
+          return filteredValue;
+        },
+      },
+      delete: {
+        onAfterDelete(value) {
+          delete settings.prompts[value];
+        },
+      },
+      onSelectChange(_, newValue) {
+        const newPresetValue = newValue ?? '';
+        const prompSetting: PromptSetting | undefined = settings.prompts[newPresetValue];
+        if (prompSetting) {
+          promptTextarea.value = prompSetting.content ?? '';
+          restoreSystemPromptButton.style.display = SYSTEM_PROMPT_KEYS.includes(newPresetValue) ? 'block' : 'none';
+          settingsManager.saveSettings();
+        }
+      },
+    });
+
+    // Initial state
+    const selectedKey = promptSelect.value;
+    const prompSetting: PromptSetting | undefined = settings.prompts[selectedKey];
+    if (prompSetting) {
+      promptTextarea.value = prompSetting.content ?? '';
+      restoreSystemPromptButton.style.display = SYSTEM_PROMPT_KEYS.includes(selectedKey) ? 'block' : 'none';
+    }
+
+    // Event listener for textarea change
+    promptTextarea.addEventListener('change', () => {
+      const selectedKey = promptSelect.value;
+      const currentContent = promptTextarea.value;
+
+      const prompSetting: PromptSetting | undefined = settings.prompts[selectedKey];
+      if (prompSetting) {
+        prompSetting.content = currentContent;
+        prompSetting.isDefault = SYSTEM_PROMPT_KEYS.includes(selectedKey)
+          ? DEFAULT_PROMPT_CONTENTS[selectedKey] === currentContent
+          : false;
+        restoreSystemPromptButton.style.display = SYSTEM_PROMPT_KEYS.includes(selectedKey) ? 'block' : 'none';
+        settingsManager.saveSettings();
       }
     });
 
-    textarea.addEventListener('change', () => {
-      (settings[settingKey] as any) = textarea.value;
-      (settings[defaultFlagKey] as any) = textarea.value === defaultText;
-      settingsManager.saveSettings();
+    restoreSystemPromptButton.addEventListener('click', async () => {
+      const selectedKey = promptSelect.value;
+      const defaultContent = DEFAULT_PROMPT_CONTENTS[selectedKey];
+      const promptSetting: PromptSetting | undefined = settings.prompts[selectedKey];
+      if (promptSetting) {
+        const confirm = await globalContext.Popup.show.confirm(
+          'Restore Default',
+          `Are you sure you want to restore the default for "${promptSetting.label}"?`,
+        );
+        if (confirm) {
+          promptTextarea.value = defaultContent;
+          promptTextarea.dispatchEvent(new Event('change'));
+        }
+      } else {
+        st_echo('warning', 'No prompt selected.');
+      }
     });
-  };
+  }
 
-  // Setup all prompt areas
-  setupPromptArea(
-    'stCharCardPrompt',
-    'stCharCardPrompt',
-    DEFAULT_CHAR_CARD_DESCRIPTION,
-    'usingDefaultStCharCardPrompt',
-  );
-  setupPromptArea(
-    'charCardDefinitionPrompt',
-    'charCardDefinitionPrompt',
-    DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
-    'usingDefaultCharCardDefinitionPrompt',
-  );
-  setupPromptArea(
-    'lorebookDefinitionPrompt',
-    'lorebookDefinitionPrompt',
-    DEFAULT_LOREBOOK_DEFINITION,
-    'usingDefaultLorebookDefinitionPrompt',
-  );
-  setupPromptArea('xmlFormatDesc', 'xmlFormatDesc', DEFAULT_XML_FORMAT_DESC, 'usingDefaultXmlFormatDesc');
-  setupPromptArea('jsonFormatDesc', 'jsonFormatDesc', DEFAULT_JSON_FORMAT_DESC, 'usingDefaultJsonFormatDesc');
-  setupPromptArea('noneFormatDesc', 'noneFormatDesc', DEFAULT_NONE_FORMAT_DESC, 'usingDefaultNoneFormatDesc');
-
-  // Setup World Info Settings
   const showSaveAsWorldInfoCheckbox = settingsContainer.querySelector(
     '#charCreator_showSaveAsWorldInfo',
   ) as HTMLInputElement;
@@ -126,33 +268,6 @@ async function handleSettingsUI() {
     showSaveAsWorldInfoCheckbox.checked = settings.showSaveAsWorldInfoEntry.show;
     showSaveAsWorldInfoCheckbox.addEventListener('change', () => {
       settings.showSaveAsWorldInfoEntry.show = showSaveAsWorldInfoCheckbox.checked;
-      settingsManager.saveSettings();
-    });
-  }
-
-  // Setup World Info Character Definition
-  const worldInfoContainer = settingsContainer.querySelector('.worldInfoCharacterDefinition');
-  if (worldInfoContainer) {
-    const textarea = worldInfoContainer.querySelector('textarea') as HTMLTextAreaElement;
-    const restoreButton = worldInfoContainer.querySelector('.restore_default') as HTMLButtonElement;
-
-    textarea.value = settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt;
-
-    restoreButton.addEventListener('click', async () => {
-      const confirm = await globalContext.Popup.show.confirm(
-        'Character Creator',
-        'Are you sure you want to restore the default World Info Character Definition template?',
-      );
-      if (confirm) {
-        textarea.value = DEFAULT_WORLD_INFO_CHARACTER_DEFINITION;
-        textarea.dispatchEvent(new Event('change'));
-      }
-    });
-
-    textarea.addEventListener('change', () => {
-      settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt = textarea.value;
-      settings.showSaveAsWorldInfoEntry.usingDefaultCharacterDefinitionPrompt =
-        textarea.value === DEFAULT_WORLD_INFO_CHARACTER_DEFINITION;
       settingsManager.saveSettings();
     });
   }
@@ -407,7 +522,6 @@ async function handlePopupUI() {
       // Additional Instructions / Prompt Preset
       const promptTextarea = popupContainer.querySelector('#charCreator_prompt') as HTMLTextAreaElement;
       buildPresetSelect('#charCreatorPopup #charCreator_promptPreset', {
-        label: 'instructionPreset',
         initialValue: settings.promptPreset,
         initialList: Object.keys(settings.promptPresets),
         readOnlyValues: ['default'],
@@ -680,7 +794,7 @@ async function handlePopupUI() {
 
             let content: string = '';
             try {
-              const template = Handlebars.compile(settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt, {
+              const template = Handlebars.compile(settings.prompts.charDefinition.content, {
                 noEscape: true,
               });
               content = template({ character });
@@ -794,13 +908,13 @@ async function handlePopupUI() {
               let formatDescription = '';
               switch (settings.outputFormat) {
                 case 'xml':
-                  formatDescription = settings.xmlFormatDesc;
+                  formatDescription = settings.prompts.xmlFormat.content;
                   break;
                 case 'json':
-                  formatDescription = settings.jsonFormatDesc;
+                  formatDescription = settings.prompts.jsonFormat.content;
                   break;
                 case 'none':
-                  formatDescription = settings.noneFormatDesc;
+                  formatDescription = settings.prompts.noneFormat.content;
                   break;
               }
 
@@ -824,11 +938,14 @@ async function handlePopupUI() {
                 allCharacters: context.characters,
                 entriesGroupByWorldName: entriesGroupByWorldName,
                 promptSettings: {
-                  stCharCardPrompt: settings.stCharCardPrompt,
-                  charCardDefinitionPrompt: settings.charCardDefinitionPrompt,
-                  lorebookDefinitionPrompt: settings.lorebookDefinitionPrompt,
+                  stCharCardPrompt: settings.prompts.stCharCard.content,
+                  charCardDefinitionPrompt: settings.prompts.charDefinition.content,
+                  lorebookDefinitionPrompt: settings.prompts.lorebookDefinition.content,
                   formatDescription: formatDescription,
+                  existingFieldsDefinitionPrompt: settings.prompts.existingFieldsDefinition.content,
+                  taskDescriptionPrompt: settings.prompts.taskDescription.content,
                 },
+                mainContextTemplate: settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].content,
                 maxResponseToken: settings.maxResponseToken,
                 targetField: targetField,
                 outputFormat: settings.outputFormat,
@@ -884,52 +1001,91 @@ if (!stagingCheck()) {
   settingsManager
     .initializeSettings()
     .then((result) => {
-      if (result.version.changed) {
-        const settings = settingsManager.getSettings();
-        let settingsChanged = false;
+      const settings = settingsManager.getSettings();
+      let settingsChanged = false;
 
-        const checkAndUpdateDefault = (
-          settingKey: keyof ExtensionSettings,
-          defaultText: string,
-          usingDefaultKey: keyof ExtensionSettings,
-        ) => {
-          // @ts-ignore
-          if (settings[usingDefaultKey] && settings[settingKey] !== defaultText) {
-            console.log(`[${extensionName}] Updating default for ${settingKey}`);
-            (settings[settingKey] as any) = defaultText;
+      if (result.formatVersion.changed) {
+        // Perform migration only if old settings exist and format version has changed
+        if (result.oldSettings && result.formatVersion.changed) {
+          console.log(
+            `[${extensionName}] Migrating settings from format ${result.formatVersion.old} to ${result.formatVersion.new}`,
+          );
+          settingsChanged = true; // Assume change if migration logic runs
+
+          // Helper to migrate a single prompt
+          const migratePrompt = (
+            newKey: keyof typeof settings.prompts,
+            oldContentKey: string,
+            oldDefaultFlagKey: string,
+          ) => {
+            if (result.oldSettings[oldContentKey] !== undefined) {
+              settings.prompts[newKey].content = result.oldSettings[oldContentKey];
+              // Determine isDefault based on the old flag OR by comparing content if flag is missing
+              if (result.oldSettings[oldDefaultFlagKey] !== undefined) {
+                settings.prompts[newKey].isDefault = result.oldSettings[oldDefaultFlagKey];
+              } else {
+                // Fallback: compare content if the old flag doesn't exist
+                settings.prompts[newKey].isDefault =
+                  result.oldSettings[oldContentKey] === DEFAULT_PROMPT_CONTENTS[newKey];
+              }
+              // Delete the old keys from the potentially merged settings object
+              delete (settings as any)[oldContentKey];
+              delete (settings as any)[oldDefaultFlagKey];
+            } else if ((settings as any)[oldContentKey] !== undefined) {
+              // Cleanup merged keys even if not in oldSettings explicitly
+              delete (settings as any)[oldContentKey];
+              delete (settings as any)[oldDefaultFlagKey];
+            }
+          };
+
+          // Migrate all prompts using the helper
+          migratePrompt('stCharCard', 'stCharCardPrompt', 'usingDefaultStCharCardPrompt');
+          migratePrompt('charDefinition', 'charCardDefinitionPrompt', 'usingDefaultCharCardDefinitionPrompt');
+          migratePrompt('lorebookDefinition', 'lorebookDefinitionPrompt', 'usingDefaultLorebookDefinitionPrompt');
+          migratePrompt('xmlFormat', 'xmlFormatDesc', 'usingDefaultXmlFormatDesc');
+          migratePrompt('jsonFormat', 'jsonFormatDesc', 'usingDefaultJsonFormatDesc');
+          migratePrompt('noneFormat', 'noneFormatDesc', 'usingDefaultNoneFormatDesc');
+
+          // Migrate worldInfoCharDefinition
+          const oldWIEntry = result.oldSettings.showSaveAsWorldInfoEntry;
+          const oldWIContentKey = 'characterDefinitionPrompt';
+          const oldWIDefaultKey = 'usingDefaultCharacterDefinitionPrompt';
+          if (oldWIEntry && oldWIEntry[oldWIContentKey] !== undefined) {
+            settings.prompts.worldInfoCharDefinition.content = oldWIEntry[oldWIContentKey];
+            if (oldWIEntry[oldWIDefaultKey] !== undefined) {
+              settings.prompts.worldInfoCharDefinition.isDefault = oldWIEntry[oldWIDefaultKey];
+            } else {
+              settings.prompts.worldInfoCharDefinition.isDefault =
+                oldWIEntry[oldWIContentKey] === DEFAULT_PROMPT_CONTENTS.worldInfoCharDefinition;
+            }
+          }
+          // Clean up old nested keys from the current settings object regardless
+          if (settings.showSaveAsWorldInfoEntry) {
+            if ((settings.showSaveAsWorldInfoEntry as any)[oldWIContentKey] !== undefined) {
+              delete (settings.showSaveAsWorldInfoEntry as any)[oldWIContentKey];
+            }
+            if ((settings.showSaveAsWorldInfoEntry as any)[oldWIDefaultKey] !== undefined) {
+              delete (settings.showSaveAsWorldInfoEntry as any)[oldWIDefaultKey];
+            }
+          }
+        }
+      }
+      if (result.version.changed) {
+        Object.entries(DEFAULT_PROMPT_CONTENTS).forEach(([key, defaultContent]) => {
+          const promptKey = key as keyof typeof DEFAULT_PROMPT_CONTENTS;
+          const currentSetting = settings.prompts[promptKey];
+
+          if (currentSetting && currentSetting.isDefault && currentSetting.content !== defaultContent) {
+            console.log(`[${extensionName}] Updating default for prompt: ${promptKey}`);
+            settings.prompts[promptKey].content = defaultContent;
             settingsChanged = true;
           }
-        };
+        });
+      }
 
-        checkAndUpdateDefault('stCharCardPrompt', DEFAULT_CHAR_CARD_DESCRIPTION, 'usingDefaultStCharCardPrompt');
-        checkAndUpdateDefault(
-          'charCardDefinitionPrompt',
-          DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
-          'usingDefaultCharCardDefinitionPrompt',
-        );
-        checkAndUpdateDefault(
-          'lorebookDefinitionPrompt',
-          DEFAULT_LOREBOOK_DEFINITION,
-          'usingDefaultLorebookDefinitionPrompt',
-        );
-        checkAndUpdateDefault('xmlFormatDesc', DEFAULT_XML_FORMAT_DESC, 'usingDefaultXmlFormatDesc');
-        checkAndUpdateDefault('jsonFormatDesc', DEFAULT_JSON_FORMAT_DESC, 'usingDefaultJsonFormatDesc');
-        checkAndUpdateDefault('noneFormatDesc', DEFAULT_NONE_FORMAT_DESC, 'usingDefaultNoneFormatDesc');
-
-        // Check and update World Info character definition template
-        if (
-          settings.showSaveAsWorldInfoEntry.usingDefaultCharacterDefinitionPrompt &&
-          settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt !== DEFAULT_WORLD_INFO_CHARACTER_DEFINITION
-        ) {
-          console.log(`[${extensionName}] Updating default for World Info character definition template`);
-          settings.showSaveAsWorldInfoEntry.characterDefinitionPrompt = DEFAULT_WORLD_INFO_CHARACTER_DEFINITION;
-          settingsChanged = true;
-        }
-
-        if (settingsChanged) {
-          console.log(`[${extensionName}] Saving updated default settings.`);
-          settingsManager.saveSettings();
-        }
+      if (settingsChanged) {
+        console.log(`[${extensionName}] Data migration complete. Saving settings...`);
+        settingsManager.saveSettings();
       }
       main();
     })
