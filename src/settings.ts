@@ -14,7 +14,7 @@ import {
 import { ContextToSend } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
-export const VERSION = '0.1.5';
+export const VERSION = '0.1.6';
 export const FORMAT_VERSION = 'F_1.2';
 
 export const KEYS = {
@@ -97,7 +97,6 @@ export const DEFAULT_PROMPT_CONTENTS: Record<keyof ExtensionSettings['prompts'],
   worldInfoCharDefinition: DEFAULT_WORLD_INFO_CHARACTER_DEFINITION,
   existingFieldDefinitions: DEFAULT_EXISTING_FIELDS_DEFINITION,
   taskDescription: DEFAULT_TASK_DESCRIPTION,
-  mainContextTemplate: DEFAULT_MAIN_CONTEXT_TEMPLATE,
 };
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {

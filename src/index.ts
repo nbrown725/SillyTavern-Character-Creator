@@ -1299,6 +1299,21 @@ if (!stagingCheck()) {
             settingsChanged = true;
           }
         });
+
+        settings.mainContextTemplatePresets['default'] = {
+          content: DEFAULT_MAIN_CONTEXT_TEMPLATE,
+        };
+        settingsChanged = true;
+
+        // Reset all prompts to default
+        if (result.version.new === '0.1.6') {
+          Object.entries(DEFAULT_PROMPT_CONTENTS).forEach(([key, defaultContent]) => {
+            const promptKey = key as keyof typeof DEFAULT_PROMPT_CONTENTS;
+            settings.prompts[promptKey].content = defaultContent;
+            settings.prompts[promptKey].isDefault = true;
+            settingsChanged = true;
+          });
+        }
       }
 
       if (settingsChanged) {
