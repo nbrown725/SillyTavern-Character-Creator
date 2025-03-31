@@ -275,6 +275,26 @@ async function handleSettingsUI() {
       settingsManager.saveSettings();
     });
   }
+
+  // Reset Everything Button
+  const resetEverythingButton = settingsContainer.querySelector('#charCreator_resetEverything') as HTMLButtonElement;
+  resetEverythingButton.addEventListener('click', async () => {
+    const confirm = await globalContext.Popup.show.confirm(
+      'Reset Everything',
+      'Are you sure? This will reset all settings to default and clear your data in popup. This cannot be undone. This is a destructive action.',
+    );
+    if (confirm) {
+      // Clear active session
+      localStorage.removeItem('charCreator');
+
+      // Reset all settings to default
+      settingsManager.resetSettings();
+
+      setTimeout(() => {
+        st_echo('success', 'Everything has been reset to default. Please reload the page.');
+      }, 1500);
+    }
+  });
 }
 
 async function handlePopupUI() {
