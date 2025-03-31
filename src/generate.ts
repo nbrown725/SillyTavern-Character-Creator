@@ -3,7 +3,7 @@ import { ExtractedData } from 'sillytavern-utils-lib/types';
 import { parseResponse } from './parsers.js';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
-import { ExtensionSettings } from './settings.js';
+import { ExtensionSettings, SYSTEM_PROMPT_KEYS } from './settings.js';
 
 // @ts-ignore
 import { Handlebars } from '../../../../../lib.js';
@@ -220,6 +220,13 @@ export async function runCharacterFieldGeneration({
       templateData['taskDescription'] = taskDescriptionPrompt;
     }
   }
+
+  // Add user-added prompts
+  Object.entries(promptSettings)
+    .filter(([key]) => !SYSTEM_PROMPT_KEYS.includes(key))
+    .forEach(([key, value]) => {
+      templateData[key] = globalContext.substituteParams(value.content);
+    });
 
   /**
    * Helper function to process a content block from the template.
