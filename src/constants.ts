@@ -14,8 +14,8 @@ export const DEFAULT_MAIN_CONTEXT_TEMPLATE = `{{#if chatHistory}}
 {{lorebookDefinitions}}
 {{/if}}
 [CREC_NEXT_MESSAGE]
-{{#if existingFields}}
-{{existingFields}}
+{{#if existingFieldDefinitions}}
+{{existingFieldDefinitions}}
 {{/if}}
 [CREC_NEXT_MESSAGE]
 {{#if outputFormatInstructions}}

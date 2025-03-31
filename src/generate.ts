@@ -118,13 +118,13 @@ export async function runCharacterFieldGeneration({
 
   // Add ST/Character Card Description
   if (contextToSend.stDescription) {
-    templateData['stDescription'] = promptSettings.stCharCard.content;
+    templateData['stDescription'] = promptSettings.stDescription.content;
   }
 
   // Add Definitions of Selected Characters (if enabled and characters selected)
   if (contextToSend.charCard && session.selectedCharacterIndexes.length > 0) {
     try {
-      const template = Handlebars.compile(promptSettings.charDefinition.content, { noEscape: true });
+      const template = Handlebars.compile(promptSettings.charDefinitions.content, { noEscape: true });
       const charactersData: Array<Character> = [];
       session.selectedCharacterIndexes.forEach((charIndex) => {
         const charIndexNumber = parseInt(charIndex);
@@ -148,7 +148,7 @@ export async function runCharacterFieldGeneration({
   // Add Definitions of Selected Lorebooks (World Info)
   if (contextToSend.worldInfo && session.selectedWorldNames.length > 0) {
     try {
-      const template = Handlebars.compile(promptSettings.lorebookDefinition.content, { noEscape: true });
+      const template = Handlebars.compile(promptSettings.lorebookDefinitions.content, { noEscape: true });
       const lorebooksData: Record<string, WIEntry[]> = {};
       Object.entries(entriesGroupByWorldName)
         .filter(
@@ -180,7 +180,7 @@ export async function runCharacterFieldGeneration({
     (Object.keys(session.fields).length > 0 || Object.keys(session.draftFields).length > 0)
   ) {
     try {
-      const template = Handlebars.compile(promptSettings.existingFieldsDefinition.content, { noEscape: true });
+      const template = Handlebars.compile(promptSettings.existingFieldDefinitions.content, { noEscape: true });
       const coreFields: Record<string, string> = Object.fromEntries(
         Object.entries(session.fields).map(([fieldName, field]) => [field.label, field.value]),
       );
@@ -196,7 +196,7 @@ export async function runCharacterFieldGeneration({
 
       const existingFieldsPrompt = template({ fields: allFields });
       if (existingFieldsPrompt) {
-        templateData['existingFields'] = existingFieldsPrompt;
+        templateData['existingFieldDefinitions'] = existingFieldsPrompt;
       }
     } catch (error: any) {
       console.error('Error compiling or executing Handlebars template for existing fields:', error);

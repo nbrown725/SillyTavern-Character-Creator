@@ -995,7 +995,7 @@ async function handlePopupUI() {
 
             let content: string = '';
             try {
-              const template = Handlebars.compile(settings.prompts.charDefinition.content, {
+              const template = Handlebars.compile(settings.prompts.charDefinitions.content, {
                 noEscape: true,
               });
               content = template({ character });
@@ -1262,20 +1262,13 @@ if (!stagingCheck()) {
                 settings.prompts[newKey].isDefault =
                   result.oldSettings[oldContentKey] === DEFAULT_PROMPT_CONTENTS[newKey];
               }
-              // Delete the old keys from the potentially merged settings object
-              delete (settings as any)[oldContentKey];
-              delete (settings as any)[oldDefaultFlagKey];
-            } else if ((settings as any)[oldContentKey] !== undefined) {
-              // Cleanup merged keys even if not in oldSettings explicitly
-              delete (settings as any)[oldContentKey];
-              delete (settings as any)[oldDefaultFlagKey];
             }
           };
 
           // Migrate all prompts using the helper
-          migratePrompt('stCharCard', 'stCharCardPrompt', 'usingDefaultStCharCardPrompt');
-          migratePrompt('charDefinition', 'charCardDefinitionPrompt', 'usingDefaultCharCardDefinitionPrompt');
-          migratePrompt('lorebookDefinition', 'lorebookDefinitionPrompt', 'usingDefaultLorebookDefinitionPrompt');
+          migratePrompt('stDescription', 'stCharCardPrompt', 'usingDefaultStCharCardPrompt');
+          migratePrompt('charDefinitions', 'charCardDefinitionPrompt', 'usingDefaultCharCardDefinitionPrompt');
+          migratePrompt('lorebookDefinitions', 'lorebookDefinitionPrompt', 'usingDefaultLorebookDefinitionPrompt');
           migratePrompt('xmlFormat', 'xmlFormatDesc', 'usingDefaultXmlFormatDesc');
           migratePrompt('jsonFormat', 'jsonFormatDesc', 'usingDefaultJsonFormatDesc');
           migratePrompt('noneFormat', 'noneFormatDesc', 'usingDefaultNoneFormatDesc');
@@ -1291,15 +1284,6 @@ if (!stagingCheck()) {
             } else {
               settings.prompts.worldInfoCharDefinition.isDefault =
                 oldWIEntry[oldWIContentKey] === DEFAULT_PROMPT_CONTENTS.worldInfoCharDefinition;
-            }
-          }
-          // Clean up old nested keys from the current settings object regardless
-          if (settings.showSaveAsWorldInfoEntry) {
-            if ((settings.showSaveAsWorldInfoEntry as any)[oldWIContentKey] !== undefined) {
-              delete (settings.showSaveAsWorldInfoEntry as any)[oldWIContentKey];
-            }
-            if ((settings.showSaveAsWorldInfoEntry as any)[oldWIDefaultKey] !== undefined) {
-              delete (settings.showSaveAsWorldInfoEntry as any)[oldWIDefaultKey];
             }
           }
         }

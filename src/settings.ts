@@ -14,8 +14,8 @@ import {
 import { ContextToSend } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
-export const VERSION = '0.1.4';
-export const FORMAT_VERSION = 'F_1.1';
+export const VERSION = '0.1.5';
+export const FORMAT_VERSION = 'F_1.2';
 
 export const KEYS = {
   EXTENSION: 'charCreator',
@@ -49,14 +49,14 @@ export interface ExtensionSettings {
 
   // Consolidated system prompts
   prompts: {
-    stCharCard: PromptSetting;
-    charDefinition: PromptSetting;
-    lorebookDefinition: PromptSetting;
+    stDescription: PromptSetting;
+    charDefinitions: PromptSetting;
+    lorebookDefinitions: PromptSetting;
     xmlFormat: PromptSetting;
     jsonFormat: PromptSetting;
     noneFormat: PromptSetting;
     worldInfoCharDefinition: PromptSetting;
-    existingFieldsDefinition: PromptSetting;
+    existingFieldDefinitions: PromptSetting;
     taskDescription: PromptSetting;
     [key: string]: PromptSetting;
   };
@@ -75,27 +75,27 @@ export interface ExtensionSettings {
 }
 
 export const SYSTEM_PROMPT_KEYS: Array<string> = [
-  'stCharCard',
-  'charDefinition',
-  'lorebookDefinition',
+  'stDescription',
+  'charDefinitions',
+  'lorebookDefinitions',
   'xmlFormat',
   'jsonFormat',
   'noneFormat',
   'worldInfoCharDefinition',
-  'existingFieldsDefinition',
+  'existingFieldDefinitions',
   'taskDescription',
 ];
 
 // Map keys to their default values
 export const DEFAULT_PROMPT_CONTENTS: Record<keyof ExtensionSettings['prompts'], string> = {
-  stCharCard: DEFAULT_CHAR_CARD_DESCRIPTION,
-  charDefinition: DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
-  lorebookDefinition: DEFAULT_LOREBOOK_DEFINITION,
+  stDescription: DEFAULT_CHAR_CARD_DESCRIPTION,
+  charDefinitions: DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
+  lorebookDefinitions: DEFAULT_LOREBOOK_DEFINITION,
   xmlFormat: DEFAULT_XML_FORMAT_DESC,
   jsonFormat: DEFAULT_JSON_FORMAT_DESC,
   noneFormat: DEFAULT_NONE_FORMAT_DESC,
   worldInfoCharDefinition: DEFAULT_WORLD_INFO_CHARACTER_DEFINITION,
-  existingFieldsDefinition: DEFAULT_EXISTING_FIELDS_DEFINITION,
+  existingFieldDefinitions: DEFAULT_EXISTING_FIELDS_DEFINITION,
   taskDescription: DEFAULT_TASK_DESCRIPTION,
   mainContextTemplate: DEFAULT_MAIN_CONTEXT_TEMPLATE,
 };
@@ -126,18 +126,18 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
   // Updated prompts structure
   prompts: {
-    stCharCard: {
-      content: DEFAULT_PROMPT_CONTENTS.stCharCard,
+    stDescription: {
+      content: DEFAULT_PROMPT_CONTENTS.stDescription,
       isDefault: true,
       label: 'ST/Char Card Description',
     },
-    charDefinition: {
-      content: DEFAULT_PROMPT_CONTENTS.charDefinition,
+    charDefinitions: {
+      content: DEFAULT_PROMPT_CONTENTS.charDefinitions,
       isDefault: true,
       label: 'Character Definition Template',
     },
-    lorebookDefinition: {
-      content: DEFAULT_PROMPT_CONTENTS.lorebookDefinition,
+    lorebookDefinitions: {
+      content: DEFAULT_PROMPT_CONTENTS.lorebookDefinitions,
       isDefault: true,
       label: 'Lorebook Definition Template',
     },
@@ -161,7 +161,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
       isDefault: true,
       label: 'World Info Character Definition Template',
     },
-    existingFieldsDefinition: {
+    existingFieldDefinitions: {
       content: DEFAULT_EXISTING_FIELDS_DEFINITION,
       isDefault: true,
       label: 'Existing Fields Definition Template',
