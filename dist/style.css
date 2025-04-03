@@ -171,6 +171,11 @@
   gap: 15px;
   flex-direction: row-reverse;
 }
+@media (max-width: 768px) {
+  #charCreatorPopup .character-field-actions {
+    flex-wrap: wrap;
+  }
+}
 #charCreatorPopup .character-field-actions button {
   padding: 10px 20px;
   background-color: var(--SmartThemeBlurTintColor);

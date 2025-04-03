@@ -183,6 +183,9 @@
         display: flex;
         gap: 15px;
         flex-direction: row-reverse;
+        @media (max-width: 768px) {
+            flex-wrap: wrap;
+        }
 
         button {
             padding: 10px 20px;

@@ -4,7 +4,7 @@ import { parseResponse } from './parsers.js';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 import { name1, name2 } from 'sillytavern-utils-lib/config';
-import { ExtensionSettings, MessageRole, SYSTEM_PROMPT_KEYS, SystemPromptKey } from './settings.js';
+import { ExtensionSettings, MessageRole } from './settings.js';
 
 import * as Handlebars from 'handlebars';
 
@@ -160,10 +160,6 @@ export async function runCharacterFieldGeneration({
   const messages: Message[] = [];
   {
     for (const mainContext of mainContextList) {
-      const prompt = promptSettings[mainContext.promptName];
-      if (!prompt) {
-        continue;
-      }
       // Chat history is exception, since it is not a template
       if (mainContext.promptName === 'chatHistory') {
         const chatHistory = chatMessages.map((message) => ({
@@ -173,11 +169,8 @@ export async function runCharacterFieldGeneration({
         messages.push(...chatHistory);
         continue;
       }
-      // Skip if the prompt is disabled
-      if (
-        SYSTEM_PROMPT_KEYS.includes(mainContext.promptName as SystemPromptKey) &&
-        !promptSettings[mainContext.promptName]
-      ) {
+      const prompt = promptSettings[mainContext.promptName];
+      if (!prompt) {
         continue;
       }
       const message: Message = {
