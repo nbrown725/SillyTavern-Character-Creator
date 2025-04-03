@@ -1,4 +1,5 @@
 import { ExtensionSettingsManager } from 'sillytavern-utils-lib';
+import { st_echo } from 'sillytavern-utils-lib/config';
 import {
   DEFAULT_CHAR_CARD_DESCRIPTION,
   DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
@@ -10,11 +11,13 @@ import {
   DEFAULT_EXISTING_FIELDS_DEFINITION,
   DEFAULT_TASK_DESCRIPTION,
   DEFAULT_OUTPUT_FORMAT_INSTRUCTIONS,
+  DEFAULT_PERSONA_DESCRIPTION,
 } from './constants.js';
+import { globalContext } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
-export const VERSION = '0.1.7';
-export const FORMAT_VERSION = 'F_1.3';
+export const VERSION = '0.1.8';
+export const FORMAT_VERSION = 'F_1.4';
 
 export const KEYS = {
   EXTENSION: 'charCreator',
@@ -34,6 +37,7 @@ export interface ContextToSend {
   charCard: boolean;
   existingFields: boolean;
   worldInfo: boolean;
+  persona: boolean;
 }
 
 export interface PromptSetting {
@@ -82,6 +86,7 @@ export interface ExtensionSettings {
     existingFieldDefinitions: PromptSetting;
     taskDescription: PromptSetting;
     outputFormatInstructions: PromptSetting;
+    personaDescription: PromptSetting;
     [key: string]: PromptSetting;
   };
 
@@ -108,7 +113,8 @@ export type SystemPromptKey =
   | 'worldInfoCharDefinition'
   | 'existingFieldDefinitions'
   | 'taskDescription'
-  | 'outputFormatInstructions';
+  | 'outputFormatInstructions'
+  | 'personaDescription';
 
 export const SYSTEM_PROMPT_KEYS: Array<SystemPromptKey> = [
   'stDescription',
@@ -121,6 +127,7 @@ export const SYSTEM_PROMPT_KEYS: Array<SystemPromptKey> = [
   'existingFieldDefinitions',
   'taskDescription',
   'outputFormatInstructions',
+  'personaDescription',
 ];
 
 // Map keys to their default values
@@ -135,6 +142,7 @@ export const DEFAULT_PROMPT_CONTENTS: Record<SystemPromptKey, string> = {
   existingFieldDefinitions: DEFAULT_EXISTING_FIELDS_DEFINITION,
   taskDescription: DEFAULT_TASK_DESCRIPTION,
   outputFormatInstructions: DEFAULT_OUTPUT_FORMAT_INSTRUCTIONS,
+  personaDescription: DEFAULT_PERSONA_DESCRIPTION,
 };
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -159,6 +167,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     charCard: true,
     existingFields: true,
     worldInfo: true,
+    persona: true,
   },
 
   // Updated prompts structure
@@ -213,6 +222,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
       isDefault: true,
       label: 'Output Format Instructions',
     },
+    personaDescription: {
+      content: DEFAULT_PROMPT_CONTENTS.personaDescription,
+      isDefault: true,
+      label: 'User Persona Description Template',
+    },
   },
 
   // Generic Prompt Presets
@@ -251,6 +265,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         {
           enabled: true,
           promptName: 'existingFieldDefinitions',
+          role: 'system',
+        },
+        {
+          enabled: true,
+          promptName: 'personaDescription',
           role: 'system',
         },
         {
@@ -302,3 +321,170 @@ export function convertToVariableName(key: string) {
 }
 
 export const settingsManager = new ExtensionSettingsManager<ExtensionSettings>(KEYS.EXTENSION, DEFAULT_SETTINGS);
+
+export async function initializeSettings(): Promise<void> {
+  return new Promise((resolve, _reject) => {
+    settingsManager
+      .initializeSettings({
+        strategy: [
+          {
+            from: '*',
+            to: 'F_1.4',
+            action(previous?: Record<string, any>) {
+              return {
+                profileId: previous?.profileId ?? '',
+                maxContextType: previous?.maxContextType ?? 'profile',
+                maxContextValue: previous?.maxContextValue ?? 16384,
+                maxResponseToken: previous?.maxResponseToken ?? 1024,
+                outputFormat: previous?.outputFormat ?? 'xml',
+                contextToSend: {
+                  ...previous?.contextToSend,
+                  persona: true,
+                },
+
+                // Updated prompts structure
+                prompts: {
+                  stDescription: {
+                    content: DEFAULT_PROMPT_CONTENTS.stDescription,
+                    isDefault: true,
+                    label: 'ST/Char Card Description',
+                  },
+                  charDefinitions: {
+                    content: DEFAULT_PROMPT_CONTENTS.charDefinitions,
+                    isDefault: true,
+                    label: 'Character Definition Template',
+                  },
+                  lorebookDefinitions: {
+                    content: DEFAULT_PROMPT_CONTENTS.lorebookDefinitions,
+                    isDefault: true,
+                    label: 'Lorebook Definition Template',
+                  },
+                  xmlFormat: {
+                    content: DEFAULT_PROMPT_CONTENTS.xmlFormat,
+                    isDefault: true,
+                    label: 'XML Format Description',
+                  },
+                  jsonFormat: {
+                    content: DEFAULT_PROMPT_CONTENTS.jsonFormat,
+                    isDefault: true,
+                    label: 'JSON Format Description',
+                  },
+                  noneFormat: {
+                    content: DEFAULT_PROMPT_CONTENTS.noneFormat,
+                    isDefault: true,
+                    label: 'Plain Text Format Description',
+                  },
+                  worldInfoCharDefinition: {
+                    content: DEFAULT_PROMPT_CONTENTS.worldInfoCharDefinition,
+                    isDefault: true,
+                    label: 'World Info Character Definition Template',
+                  },
+                  existingFieldDefinitions: {
+                    content: DEFAULT_EXISTING_FIELDS_DEFINITION,
+                    isDefault: true,
+                    label: 'Existing Fields Definition Template',
+                  },
+                  taskDescription: {
+                    content: DEFAULT_TASK_DESCRIPTION,
+                    isDefault: true,
+                    label: 'Task Description Template',
+                  },
+                  outputFormatInstructions: {
+                    content: DEFAULT_OUTPUT_FORMAT_INSTRUCTIONS,
+                    isDefault: true,
+                    label: 'Output Format Instructions',
+                  },
+                  personaDescription: {
+                    content: DEFAULT_PROMPT_CONTENTS.personaDescription,
+                    isDefault: true,
+                    label: 'User Persona Description Template',
+                  },
+                },
+
+                // Generic Prompt Presets
+                promptPreset: previous?.default ?? 'default',
+                promptPresets: previous?.promptPresets ?? {
+                  default: {
+                    content:
+                      'Generate the field content based on the chat history and existing character details. Be creative but consistent.',
+                  },
+                },
+
+                mainContextTemplatePreset: 'default',
+                mainContextTemplatePresets: {
+                  default: {
+                    prompts: [
+                      {
+                        enabled: true,
+                        promptName: 'chatHistory',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'stDescription',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'charDefinitions',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'lorebookDefinitions',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'existingFieldDefinitions',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'personaDescription',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'outputFormatInstructions',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'taskDescription',
+                        role: 'user',
+                      },
+                    ],
+                  },
+                },
+
+                // World Info
+                showSaveAsWorldInfoEntry: previous?.showSaveAsWorldInfoEntry ?? {
+                  show: previous?.showSaveAsWorldInfoEntry.show ?? false,
+                },
+              };
+            },
+          },
+        ],
+      })
+      .then((_result) => {
+        resolve();
+      })
+      .catch((error) => {
+        console.error(`[${extensionName}] Error initializing settings:`, error);
+        st_echo('error', `[${extensionName}] Failed to initialize settings: ${error.message}`);
+        globalContext.Popup.show
+          .confirm(
+            `[${extensionName}] Failed to load settings. This might be due to an update. Reset settings to default?`,
+            'Extension Error',
+          )
+          .then((result: boolean) => {
+            if (result) {
+              settingsManager.resetSettings();
+              st_echo('success', `[${extensionName}] Settings reset. Reloading may be required.`);
+              resolve();
+            }
+          });
+      });
+  });
+}

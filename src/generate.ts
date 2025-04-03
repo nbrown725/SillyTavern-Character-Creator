@@ -3,8 +3,8 @@ import { ExtractedData } from 'sillytavern-utils-lib/types';
 import { parseResponse } from './parsers.js';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
-import { name1, name2 } from 'sillytavern-utils-lib/config';
-import { ExtensionSettings, MessageRole } from './settings.js';
+import { name1 } from 'sillytavern-utils-lib/config';
+import { ExtensionSettings, MessageRole, OutputFormat } from './settings.js';
 
 import * as Handlebars from 'handlebars';
 
@@ -61,9 +61,10 @@ export interface RunCharacterFieldGenerationParams {
     promptName: string;
     role: MessageRole;
   }[];
+  includeUserMacro: boolean;
   maxResponseToken: number;
   targetField: CharacterFieldName | string;
-  outputFormat: 'xml' | 'json' | 'none';
+  outputFormat: OutputFormat;
 }
 
 export async function runCharacterFieldGeneration({
@@ -76,6 +77,7 @@ export async function runCharacterFieldGeneration({
   promptSettings,
   formatDescription,
   mainContextList,
+  includeUserMacro,
   maxResponseToken,
   targetField,
   outputFormat,
@@ -88,8 +90,6 @@ export async function runCharacterFieldGeneration({
     throw new Error(`Connection profile with ID "${profileId}" not found.`);
   }
 
-  const processedUserPrompt = globalContext.substituteParams(userPrompt.trim());
-
   const selectedApi = profile.api ? globalContext.CONNECT_API_MAP[profile.api].selected : undefined;
   if (!selectedApi) {
     throw new Error(`Could not determine API for profile "${profile.name}".`);
@@ -97,13 +97,23 @@ export async function runCharacterFieldGeneration({
 
   const templateData: Record<string, any> = {};
 
-  templateData['userInstructions'] = processedUserPrompt;
-  templateData['fieldSpecificInstructions'] =
-    session.draftFields[targetField]?.prompt ?? session.fields[targetField as CharacterFieldName]?.prompt;
+  templateData['char'] = session.fields.name.value ?? '{{char}}';
+  templateData['user'] = includeUserMacro && name1 ? name1 : '{{user}}';
+  templateData['persona'] = '{{persona}}'; // ST going to replace this with the actual persona description
+
   templateData['targetField'] = targetField;
-  templateData['activeFormatInstructions'] = formatDescription.content;
-  templateData['char'] = name1 ?? '{{char}}';
-  templateData['user'] = name2 ?? '{{user}}';
+  templateData['userInstructions'] = Handlebars.compile(userPrompt.trim(), { noEscape: true })(templateData);
+  templateData['fieldSpecificInstructions'] = Handlebars.compile(
+    session.draftFields[targetField]?.prompt ?? session.fields[targetField as CharacterFieldName]?.prompt,
+    { noEscape: true },
+  )({
+    ...templateData,
+    char: targetField === 'mes_example' ? '{{char}}' : templateData.char,
+    user: targetField === 'mes_example' ? '{{user}}' : templateData.user,
+  });
+  templateData['activeFormatInstructions'] = Handlebars.compile(formatDescription.content, { noEscape: true })(
+    templateData,
+  );
 
   // Build base prompt (system, memory, messages, persona - if applicable)
   const chatMessages = await buildPrompt(selectedApi, buildPromptOptions);
@@ -142,10 +152,20 @@ export async function runCharacterFieldGeneration({
   // Add Current Field Values (if enabled)
   {
     const coreFields: Record<string, string> = Object.fromEntries(
-      Object.entries(session.fields).map(([_fieldName, field]) => [field.label, field.value]),
+      Object.entries(session.fields).map(([fieldName, field]) => [
+        field.label,
+        Handlebars.compile(field.value, { noEscape: true })({
+          ...templateData,
+          char: fieldName === 'mes_example' ? '{{char}}' : templateData.char,
+          user: fieldName === 'mes_example' ? '{{user}}' : templateData.user,
+        }),
+      ]),
     );
     const draftFields: Record<string, string> = Object.fromEntries(
-      Object.entries(session.draftFields || {}).map(([_fieldName, field]) => [field.label, field.value]),
+      Object.entries(session.draftFields || {}).map(([_fieldName, field]) => [
+        field.label,
+        Handlebars.compile(field.value, { noEscape: true })(templateData),
+      ]),
     );
 
     // Combine core and draft fields for the template context
@@ -169,13 +189,20 @@ export async function runCharacterFieldGeneration({
         messages.push(...chatHistory);
         continue;
       }
+
+      let newTemplateData = structuredClone(templateData);
+      if (mainContext.promptName === 'stDescription') {
+        newTemplateData['char'] = '{{char}}';
+        newTemplateData['user'] = '{{user}}';
+      }
+
       const prompt = promptSettings[mainContext.promptName];
       if (!prompt) {
         continue;
       }
       const message: Message = {
         role: mainContext.role,
-        content: Handlebars.compile(prompt.content, { noEscape: true })(templateData),
+        content: Handlebars.compile(prompt.content, { noEscape: true })(newTemplateData),
       };
       message.content = message.content.replaceAll('{{user}}', '[[[crec_veryUniqueUserPlaceHolder]]]');
       message.content = message.content.replaceAll('{{char}}', '[[[crec_veryUniqueCharPlaceHolder]]]');

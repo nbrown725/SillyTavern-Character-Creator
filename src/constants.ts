@@ -6,10 +6,10 @@ When creating a **character card** in SillyTavern, you can define a structured p
 
 ### **1. Name**
 **Purpose**:
-The character’s primary identifier. The AI uses this to reference the character in dialogue and narration.
+The character's primary identifier. The AI uses this to reference the character in dialogue and narration.
 **Key Tips**:
 - Use a memorable name that reflects their role (e.g., "Zara the Shadowblade" implies stealth/combat).
-- Avoid overly complex or ambiguous names (e.g., "Xy’lthraa" may confuse the AI).
+- Avoid overly complex or ambiguous names (e.g., "Xy'lthraa" may confuse the AI).
 **Example**:
 \`"Seraphina Vale"\` (Elegant, hints at nobility) vs. \`"Rusty"\` (Casual, rugged).
 
@@ -17,7 +17,7 @@ The character’s primary identifier. The AI uses this to reference the characte
 
 ### **2. Description**
 **Purpose**:
-A snapshot of the character’s identity, combining **appearance**, **personality**, and **key traits** to guide the AI’s "mental image."
+A snapshot of the character's identity, combining **appearance**, **personality**, and **key traits** to guide the AI's "mental image."
 **Structure**:
 - **Appearance**: Physical traits (e.g., scars, clothing, species).
 - **Personality**: Core demeanor (e.g., stoic, playful).
@@ -61,34 +61,34 @@ Sets the stage for the interaction, providing **contextual boundaries** for the 
 
 ### **5. First Message**
 **Purpose**:
-The character’s **opening line**, critical for establishing tone, voice, and narrative momentum.
+The character's **opening line**, critical for establishing tone, voice, and narrative momentum.
 **Key Elements**:
 - **Dialogue**: Shows speech style (formal, slang-heavy).
 - **Actions**: Subtle body language (e.g., "crosses arms skeptically").
 - **Hook**: Encourages user engagement (e.g., a question or mystery).
 **Example**:
-\`*{{char}} adjusts her gas mask, voice muffled.* "You’re the third outsider this week. What makes you think you’ll survive the Wastes?"\`
+\`*{{char}} adjusts her gas mask, voice muffled.* "You're the third outsider this week. What makes you think you'll survive the Wastes?"\`
 **Tips**:
 - Avoid passive openings (e.g., "Hello, how can I help you?").
-- Mirror the character’s personality (e.g., a shy character might stammer).
+- Mirror the character's personality (e.g., a shy character might stammer).
 
 ---
 
 ### **6. Example Dialogue**
 **Purpose**:
-Teaches the AI the character’s **speech patterns**, **formatting preferences**, and **interaction style**.
+Teaches the AI the character's **speech patterns**, **formatting preferences**, and **interaction style**.
 **Structure**:
 - Use \`{{char}}\` and \`{{user}}\` placeholders.
-- Mix dialogue and actions (e.g., \`*{{char}} smirks.* "You’re bold. I like that."\`).
+- Mix dialogue and actions (e.g., \`*{{char}} smirks.* "You're bold. I like that."\`).
 - Show range (e.g., anger, sarcasm, vulnerability).
 **Example**:
 \`\`\`
 {{user}}: Why should I trust you?
-{{char}}: *Pulls a dagger from her boot and twirls it.* "You shouldn’t. But I’m your only way out of this alive."
+{{char}}: *Pulls a dagger from her boot and twirls it.* "You shouldn't. But I'm your only way out of this alive."
 \`\`\`
 **Tips**:
 - Include 3–5 varied exchanges.
-- Match the character’s voice (e.g., a poet might use metaphors).
+- Match the character's voice (e.g., a poet might use metaphors).
 
 ---
 
@@ -104,8 +104,8 @@ Teaches the AI the character’s **speech patterns**, **formatting preferences**
   "description": "A storm sorcerer with crackling electricity in his eyes. Wears a cloak woven from thunderclouds. Pragmatic to a fault, but secretly fears losing control of his powers.",
   "personality": "Analytical, blunt, distrusts authority. Motto: 'Chaosis just order waiting to be deciphered.'",
   "scenario": "A floating library during a magical hurricane. {{user}} is a novice mage Kael reluctantly mentors.",
-  "first_message": "*Kael’s hands spark as he slams a tome shut.* ‘You’ve got five minutes to explain why I shouldn’t toss you into the storm.’",
-  "example_dialogue": "{{user}}: Can you teach me to control the storm?\n{{char}}: *Snorts.* ‘Control is an illusion. You ride the storm or drown.’"
+  "first_message": "*Kael's hands spark as he slams a tome shut.* 'You've got five minutes to explain why I shouldn't toss you into the storm.'",
+  "example_dialogue": "{{user}}: Can you teach me to control the storm?\n{{char}}: *Snorts.* 'Control is an illusion. You ride the storm or drown.'"
 }
 \`\`\`
 
@@ -205,6 +205,11 @@ export const DEFAULT_EXISTING_FIELDS_DEFINITION = `=== CURRENT CHARACTER FIELD V
 {{#each fields.draft as |value key|}}
 - **{{key}}:** {{#if value}}{{value}}{{else}}*Not provided*{{/if}}
 {{/each}}
+{{/if}}`;
+
+export const DEFAULT_PERSONA_DESCRIPTION = `## User's Persona Description
+name: {{user}}
+{{persona}}
 {{/if}}`;
 
 export const DEFAULT_TASK_DESCRIPTION = `Your task is to generate the content for the "{{targetField}}" field of a character card. Base your response on the preceding context (chat history, persona, system prompts, character/lore definitions, existing fields, etc.).

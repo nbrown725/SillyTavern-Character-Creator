@@ -34,6 +34,7 @@ import {
   MessageRole,
   ContextToSend,
   SystemPromptKey,
+  initializeSettings,
 } from './settings.js';
 import { Character, FullExportData } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
@@ -468,6 +469,7 @@ async function handlePopupUI() {
 
       // Context Sending Options
       const stDescriptionCheckbox = popupContainer.querySelector('#charCreator_stDescription') as HTMLInputElement;
+      const includePersonaCheckbox = popupContainer.querySelector('#charCreator_includePersona') as HTMLInputElement;
       const includeCharsCheckbox = popupContainer.querySelector('#charCreator_includeChars') as HTMLInputElement;
       const includeCharsContainer = popupContainer.querySelector('#charCreator_charIncludeContainer') as HTMLDivElement;
       const includeWorldInfoCheckbox = popupContainer.querySelector(
@@ -481,6 +483,7 @@ async function handlePopupUI() {
       ) as HTMLInputElement;
 
       stDescriptionCheckbox.checked = settings.contextToSend.stDescription;
+      includePersonaCheckbox.checked = settings.contextToSend.persona;
       includeCharsCheckbox.checked = settings.contextToSend.charCard;
       includeExistingFieldsCheckbox.checked = settings.contextToSend.existingFields;
       includeWorldInfoCheckbox.checked = settings.contextToSend.worldInfo;
@@ -490,6 +493,10 @@ async function handlePopupUI() {
 
       stDescriptionCheckbox.addEventListener('change', () => {
         settings.contextToSend.stDescription = stDescriptionCheckbox.checked;
+        settingsManager.saveSettings();
+      });
+      includePersonaCheckbox.addEventListener('change', () => {
+        settings.contextToSend.persona = includePersonaCheckbox.checked;
         settingsManager.saveSettings();
       });
       includeCharsCheckbox.addEventListener('change', () => {
@@ -1325,6 +1332,10 @@ async function handlePopupUI() {
             // @ts-ignore
             delete promptSettings.existingFieldDefinitions;
           }
+          if (!settings.contextToSend.persona) {
+            // @ts-ignore
+            delete promptSettings.personaDescription;
+          }
           // @ts-ignore - since this is only for saving as world info entry
           delete promptSettings.worldInfoCharDefinition;
 
@@ -1345,6 +1356,7 @@ async function handlePopupUI() {
                 promptName: p.promptName,
                 role: p.role,
               })),
+            includeUserMacro: settings.contextToSend.persona,
             maxResponseToken: settings.maxResponseToken,
             targetField: targetField,
             outputFormat: settings.outputFormat,
@@ -1408,117 +1420,7 @@ function main() {
 if (!stagingCheck()) {
   st_echo('error', `[${extensionName}] Make sure you are on staging branch and staging is updated.`);
 } else {
-  settingsManager
-    .initializeSettings()
-    .then((result) => {
-      const settings = settingsManager.getSettings();
-      let settingsChanged = false;
-
-      if (result.formatVersion.changed) {
-        // Perform migration only if old settings exist and format version has changed
-        if (result.oldSettings && result.formatVersion.changed) {
-          console.log(
-            `[${extensionName}] Migrating settings from format ${result.formatVersion.old} to ${result.formatVersion.new}`,
-          );
-          settingsChanged = true; // Assume change if migration logic runs
-
-          // Helper to migrate a single prompt
-          const migratePrompt = (newKey: SystemPromptKey, oldContentKey: string, oldDefaultFlagKey: string) => {
-            if (result.oldSettings[oldContentKey] !== undefined) {
-              settings.prompts[newKey].content = result.oldSettings[oldContentKey];
-              // Determine isDefault based on the old flag OR by comparing content if flag is missing
-              if (result.oldSettings[oldDefaultFlagKey] !== undefined) {
-                settings.prompts[newKey].isDefault = result.oldSettings[oldDefaultFlagKey];
-              } else {
-                // Fallback: compare content if the old flag doesn't exist
-                settings.prompts[newKey].isDefault =
-                  result.oldSettings[oldContentKey] === DEFAULT_PROMPT_CONTENTS[newKey];
-              }
-            }
-          };
-
-          // Migrate all prompts using the helper
-          migratePrompt('stDescription', 'stCharCardPrompt', 'usingDefaultStCharCardPrompt');
-          migratePrompt('charDefinitions', 'charCardDefinitionPrompt', 'usingDefaultCharCardDefinitionPrompt');
-          migratePrompt('lorebookDefinitions', 'lorebookDefinitionPrompt', 'usingDefaultLorebookDefinitionPrompt');
-          migratePrompt('xmlFormat', 'xmlFormatDesc', 'usingDefaultXmlFormatDesc');
-          migratePrompt('jsonFormat', 'jsonFormatDesc', 'usingDefaultJsonFormatDesc');
-          migratePrompt('noneFormat', 'noneFormatDesc', 'usingDefaultNoneFormatDesc');
-
-          // Migrate worldInfoCharDefinition
-          const oldWIEntry = result.oldSettings.showSaveAsWorldInfoEntry;
-          const oldWIContentKey = 'characterDefinitionPrompt';
-          const oldWIDefaultKey = 'usingDefaultCharacterDefinitionPrompt';
-          if (oldWIEntry && oldWIEntry[oldWIContentKey] !== undefined) {
-            settings.prompts.worldInfoCharDefinition.content = oldWIEntry[oldWIContentKey];
-            if (oldWIEntry[oldWIDefaultKey] !== undefined) {
-              settings.prompts.worldInfoCharDefinition.isDefault = oldWIEntry[oldWIDefaultKey];
-            } else {
-              settings.prompts.worldInfoCharDefinition.isDefault =
-                oldWIEntry[oldWIContentKey] === DEFAULT_PROMPT_CONTENTS.worldInfoCharDefinition;
-            }
-          }
-        }
-      }
-      if (result.version.changed) {
-        Object.entries(DEFAULT_PROMPT_CONTENTS).forEach(([key, defaultContent]) => {
-          const promptKey = key as keyof typeof DEFAULT_PROMPT_CONTENTS;
-          const currentSetting = settings.prompts[promptKey];
-
-          if (currentSetting && currentSetting.isDefault && currentSetting.content !== defaultContent) {
-            console.log(`[${extensionName}] Updating default for prompt: ${promptKey}`);
-            settings.prompts[promptKey].content = defaultContent;
-            settingsChanged = true;
-          }
-        });
-
-        settings.mainContextTemplatePresets['default'] = {
-          prompts: DEFAULT_SETTINGS.mainContextTemplatePresets['default'].prompts,
-        };
-        settingsChanged = true;
-
-        // Reset all prompts to default
-        if (result.version.new === '0.1.6') {
-          Object.entries(DEFAULT_PROMPT_CONTENTS).forEach(([key, defaultContent]) => {
-            const promptKey = key as keyof typeof DEFAULT_PROMPT_CONTENTS;
-            settings.prompts[promptKey].content = defaultContent;
-            settings.prompts[promptKey].isDefault = true;
-            settingsChanged = true;
-          });
-        }
-        if (result.version.new === '0.1.7') {
-          const keys = Object.keys(settings.mainContextTemplatePresets);
-          for (const key of keys) {
-            delete settings.mainContextTemplatePresets[key];
-          }
-          settings.mainContextTemplatePresets['default'] = {
-            prompts: DEFAULT_SETTINGS.mainContextTemplatePresets['default'].prompts,
-          };
-          settings.mainContextTemplatePreset = 'default';
-        }
-        st_echo('success', `[${extensionName}] Now we can reorder the promps and change roles in the settings.`);
-      }
-
-      if (settingsChanged) {
-        console.log(`[${extensionName}] Data migration complete. Saving settings...`);
-        settingsManager.saveSettings();
-      }
-      main();
-    })
-    .catch((error) => {
-      console.error(`[${extensionName}] Error initializing settings:`, error);
-      st_echo('error', `[${extensionName}] Failed to initialize settings: ${error.message}`);
-      globalContext.Popup.show
-        .confirm(
-          `[${extensionName}] Failed to load settings. This might be due to an update. Reset settings to default?`,
-          'Extension Error',
-        )
-        .then((result: boolean) => {
-          if (result) {
-            settingsManager.resetSettings();
-            st_echo('success', `[${extensionName}] Settings reset. Reloading may be required.`);
-            main();
-          }
-        });
-    });
+  initializeSettings().then(() => {
+    main();
+  });
 }
