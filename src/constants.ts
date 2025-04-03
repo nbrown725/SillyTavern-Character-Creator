@@ -209,8 +209,7 @@ export const DEFAULT_EXISTING_FIELDS_DEFINITION = `=== CURRENT CHARACTER FIELD V
 
 export const DEFAULT_PERSONA_DESCRIPTION = `## User's Persona Description
 name: {{user}}
-{{persona}}
-{{/if}}`;
+{{persona}}`;
 
 export const DEFAULT_TASK_DESCRIPTION = `Your task is to generate the content for the "{{targetField}}" field of a character card. Base your response on the preceding context (chat history, persona, system prompts, character/lore definitions, existing fields, etc.).
 {{#if userInstructions}}

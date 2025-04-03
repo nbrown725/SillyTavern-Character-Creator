@@ -17,7 +17,7 @@ import { globalContext } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
 export const VERSION = '0.1.8';
-export const FORMAT_VERSION = 'F_1.4';
+export const FORMAT_VERSION = 'F_1.5';
 
 export const KEYS = {
   EXTENSION: 'charCreator',
@@ -461,6 +461,78 @@ export async function initializeSettings(): Promise<void> {
                 // World Info
                 showSaveAsWorldInfoEntry: previous?.showSaveAsWorldInfoEntry ?? {
                   show: previous?.showSaveAsWorldInfoEntry.show ?? false,
+                },
+              };
+            },
+          },
+          {
+            from: 'F_1.4',
+            to: 'F_1.5',
+            action(previous?: {
+              prompts: Record<string, PromptSetting>;
+              mainContextTemplatePresets: Record<string, MainContextTemplatePreset>;
+            }): {
+              prompts: Record<string, PromptSetting>;
+              mainContextTemplatePresets: Record<string, MainContextTemplatePreset>;
+            } {
+              return {
+                ...previous,
+                // Update persona
+                prompts: {
+                  ...previous?.prompts,
+                  personaDescription: {
+                    content: DEFAULT_PROMPT_CONTENTS.personaDescription,
+                    isDefault: true,
+                    label: 'User Persona Description Template',
+                  },
+                },
+                // Reset default main context
+                mainContextTemplatePresets: {
+                  ...previous?.mainContextTemplatePresets,
+                  default: {
+                    prompts: [
+                      {
+                        enabled: true,
+                        promptName: 'chatHistory',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'stDescription',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'charDefinitions',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'lorebookDefinitions',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'existingFieldDefinitions',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'personaDescription',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'outputFormatInstructions',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'taskDescription',
+                        role: 'user',
+                      },
+                    ],
+                  },
                 },
               };
             },
