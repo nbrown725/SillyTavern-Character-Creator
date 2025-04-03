@@ -9,17 +9,32 @@ import {
   DEFAULT_WORLD_INFO_CHARACTER_DEFINITION,
   DEFAULT_EXISTING_FIELDS_DEFINITION,
   DEFAULT_TASK_DESCRIPTION,
-  DEFAULT_MAIN_CONTEXT_TEMPLATE,
+  DEFAULT_OUTPUT_FORMAT_INSTRUCTIONS,
 } from './constants.js';
-import { ContextToSend } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
-export const VERSION = '0.1.6';
-export const FORMAT_VERSION = 'F_1.2';
+export const VERSION = '0.1.7';
+export const FORMAT_VERSION = 'F_1.3';
 
 export const KEYS = {
   EXTENSION: 'charCreator',
 } as const;
+
+export interface ContextToSend {
+  stDescription: boolean;
+  messages: {
+    type: 'none' | 'all' | 'first' | 'last' | 'range';
+    first?: number;
+    last?: number;
+    range?: {
+      start: number;
+      end: number;
+    };
+  };
+  charCard: boolean;
+  existingFields: boolean;
+  worldInfo: boolean;
+}
 
 export interface PromptSetting {
   label: string;
@@ -31,8 +46,16 @@ export interface PromptPreset {
   content: string;
 }
 
+export type MessageRole = 'user' | 'assistant' | 'system';
+
+export interface MainContextPromptBlock {
+  promptName: string;
+  enabled: boolean;
+  role: MessageRole;
+}
+
 export interface MainContextTemplatePreset {
-  content: string;
+  prompts: MainContextPromptBlock[];
 }
 
 export type OutputFormat = 'xml' | 'json' | 'none';
@@ -58,6 +81,7 @@ export interface ExtensionSettings {
     worldInfoCharDefinition: PromptSetting;
     existingFieldDefinitions: PromptSetting;
     taskDescription: PromptSetting;
+    outputFormatInstructions: PromptSetting;
     [key: string]: PromptSetting;
   };
 
@@ -74,7 +98,19 @@ export interface ExtensionSettings {
   };
 }
 
-export const SYSTEM_PROMPT_KEYS: Array<string> = [
+export type SystemPromptKey =
+  | 'stDescription'
+  | 'charDefinitions'
+  | 'lorebookDefinitions'
+  | 'xmlFormat'
+  | 'jsonFormat'
+  | 'noneFormat'
+  | 'worldInfoCharDefinition'
+  | 'existingFieldDefinitions'
+  | 'taskDescription'
+  | 'outputFormatInstructions';
+
+export const SYSTEM_PROMPT_KEYS: Array<SystemPromptKey> = [
   'stDescription',
   'charDefinitions',
   'lorebookDefinitions',
@@ -84,10 +120,11 @@ export const SYSTEM_PROMPT_KEYS: Array<string> = [
   'worldInfoCharDefinition',
   'existingFieldDefinitions',
   'taskDescription',
+  'outputFormatInstructions',
 ];
 
 // Map keys to their default values
-export const DEFAULT_PROMPT_CONTENTS: Record<keyof ExtensionSettings['prompts'], string> = {
+export const DEFAULT_PROMPT_CONTENTS: Record<SystemPromptKey, string> = {
   stDescription: DEFAULT_CHAR_CARD_DESCRIPTION,
   charDefinitions: DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE,
   lorebookDefinitions: DEFAULT_LOREBOOK_DEFINITION,
@@ -97,6 +134,7 @@ export const DEFAULT_PROMPT_CONTENTS: Record<keyof ExtensionSettings['prompts'],
   worldInfoCharDefinition: DEFAULT_WORLD_INFO_CHARACTER_DEFINITION,
   existingFieldDefinitions: DEFAULT_EXISTING_FIELDS_DEFINITION,
   taskDescription: DEFAULT_TASK_DESCRIPTION,
+  outputFormatInstructions: DEFAULT_OUTPUT_FORMAT_INSTRUCTIONS,
 };
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -170,6 +208,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
       isDefault: true,
       label: 'Task Description Template',
     },
+    outputFormatInstructions: {
+      content: DEFAULT_OUTPUT_FORMAT_INSTRUCTIONS,
+      isDefault: true,
+      label: 'Output Format Instructions',
+    },
   },
 
   // Generic Prompt Presets
@@ -183,7 +226,45 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
   mainContextTemplatePreset: 'default',
   mainContextTemplatePresets: {
-    default: { content: DEFAULT_MAIN_CONTEXT_TEMPLATE },
+    default: {
+      prompts: [
+        {
+          enabled: true,
+          promptName: 'chatHistory',
+          role: 'system',
+        },
+        {
+          enabled: true,
+          promptName: 'stDescription',
+          role: 'system',
+        },
+        {
+          enabled: true,
+          promptName: 'charDefinitions',
+          role: 'system',
+        },
+        {
+          enabled: true,
+          promptName: 'lorebookDefinitions',
+          role: 'system',
+        },
+        {
+          enabled: true,
+          promptName: 'existingFieldDefinitions',
+          role: 'system',
+        },
+        {
+          enabled: true,
+          promptName: 'outputFormatInstructions',
+          role: 'system',
+        },
+        {
+          enabled: true,
+          promptName: 'taskDescription',
+          role: 'user',
+        },
+      ],
+    },
   },
 
   // World Info

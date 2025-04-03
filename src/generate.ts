@@ -3,12 +3,11 @@ import { ExtractedData } from 'sillytavern-utils-lib/types';
 import { parseResponse } from './parsers.js';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
-import { ExtensionSettings, SYSTEM_PROMPT_KEYS } from './settings.js';
+import { name1, name2 } from 'sillytavern-utils-lib/config';
+import { ExtensionSettings, MessageRole, SYSTEM_PROMPT_KEYS, SystemPromptKey } from './settings.js';
 
-// @ts-ignore
-import { Handlebars } from '../../../../../lib.js';
+import * as Handlebars from 'handlebars';
 
-// @ts-ignore
 export const globalContext = SillyTavern.getContext();
 
 export type CharacterFieldName = 'name' | 'description' | 'personality' | 'scenario' | 'first_mes' | 'mes_example';
@@ -44,22 +43,6 @@ export interface Session {
   draftFields: Record<string, CharacterField>;
 }
 
-export interface ContextToSend {
-  stDescription: boolean;
-  messages: {
-    type: 'none' | 'all' | 'first' | 'last' | 'range';
-    first?: number;
-    last?: number;
-    range?: {
-      start: number;
-      end: number;
-    };
-  };
-  charCard: boolean;
-  existingFields: boolean;
-  worldInfo: boolean;
-}
-
 // @ts-ignore
 const dumbSettings = new ExtensionSettingsManager<ExtensionSettings>('dumb', {}).getSettings();
 
@@ -67,7 +50,6 @@ export interface RunCharacterFieldGenerationParams {
   profileId: string;
   userPrompt: string;
   buildPromptOptions: BuildPromptOptions;
-  contextToSend: ContextToSend;
   session: Session;
   allCharacters: Character[];
   entriesGroupByWorldName: Record<string, WIEntry[]>;
@@ -75,7 +57,10 @@ export interface RunCharacterFieldGenerationParams {
   formatDescription: {
     content: string;
   };
-  mainContextTemplate: string;
+  mainContextList: {
+    promptName: string;
+    role: MessageRole;
+  }[];
   maxResponseToken: number;
   targetField: CharacterFieldName | string;
   outputFormat: 'xml' | 'json' | 'none';
@@ -85,13 +70,12 @@ export async function runCharacterFieldGeneration({
   profileId,
   userPrompt,
   buildPromptOptions,
-  contextToSend,
   session,
   allCharacters,
   entriesGroupByWorldName,
   promptSettings,
   formatDescription,
-  mainContextTemplate,
+  mainContextList,
   maxResponseToken,
   targetField,
   outputFormat,
@@ -111,178 +95,104 @@ export async function runCharacterFieldGeneration({
     throw new Error(`Could not determine API for profile "${profile.name}".`);
   }
 
-  const templateData: Record<string, string | undefined> = {};
+  const templateData: Record<string, any> = {};
+
+  templateData['userInstructions'] = processedUserPrompt;
+  templateData['fieldSpecificInstructions'] =
+    session.draftFields[targetField]?.prompt ?? session.fields[targetField as CharacterFieldName]?.prompt;
+  templateData['targetField'] = targetField;
+  templateData['activeFormatInstructions'] = formatDescription.content;
+  templateData['char'] = name1 ?? '{{char}}';
+  templateData['user'] = name2 ?? '{{user}}';
 
   // Build base prompt (system, memory, messages, persona - if applicable)
   const chatMessages = await buildPrompt(selectedApi, buildPromptOptions);
 
-  // Add ST/Character Card Description
-  if (contextToSend.stDescription) {
-    templateData['stDescription'] = promptSettings.stDescription.content;
+  // Add Definitions of Selected Characters (if enabled and characters selected)
+  {
+    const charactersData: Array<Character> = [];
+    session.selectedCharacterIndexes.forEach((charIndex) => {
+      const charIndexNumber = parseInt(charIndex);
+      const char = allCharacters[charIndexNumber];
+      if (char) {
+        charactersData.push(char);
+      }
+    });
+
+    templateData['characters'] = charactersData;
   }
 
-  // Add Definitions of Selected Characters (if enabled and characters selected)
-  if (contextToSend.charCard && session.selectedCharacterIndexes.length > 0) {
-    try {
-      const template = Handlebars.compile(promptSettings.charDefinitions.content, { noEscape: true });
-      const charactersData: Array<Character> = [];
-      session.selectedCharacterIndexes.forEach((charIndex) => {
-        const charIndexNumber = parseInt(charIndex);
-        const char = allCharacters[charIndexNumber];
-        if (char) {
-          charactersData.push(char);
-        }
+  // Add Definitions of Selected Lorebooks (World Info)
+  {
+    const lorebooksData: Record<string, WIEntry[]> = {};
+    Object.entries(entriesGroupByWorldName)
+      .filter(
+        ([worldName, entries]) =>
+          entries.length > 0 &&
+          session.selectedWorldNames.includes(worldName) &&
+          entries.some((entry) => !entry.disable),
+      )
+      .forEach(([worldName, entries]) => {
+        lorebooksData[worldName] = entries.filter((entry) => !entry.disable);
       });
 
-      if (charactersData.length > 0) {
-        const charDefinitionsPrompt = template({ characters: charactersData });
-        if (charDefinitionsPrompt) {
-          templateData['charDefinitions'] = charDefinitionsPrompt;
-        }
-      }
-    } catch (error: any) {
-      console.error('Error compiling or executing Handlebars template for character definitions:', error);
-      throw new Error(`Error compiling or executing Handlebars template for character definitions: ${error.message}`);
-    }
-  }
-  // Add Definitions of Selected Lorebooks (World Info)
-  if (contextToSend.worldInfo && session.selectedWorldNames.length > 0) {
-    try {
-      const template = Handlebars.compile(promptSettings.lorebookDefinitions.content, { noEscape: true });
-      const lorebooksData: Record<string, WIEntry[]> = {};
-      Object.entries(entriesGroupByWorldName)
-        .filter(
-          ([worldName, entries]) =>
-            entries.length > 0 &&
-            session.selectedWorldNames.includes(worldName) &&
-            entries.some((entry) => !entry.disable),
-        )
-        .forEach(([worldName, entries]) => {
-          lorebooksData[worldName] = entries.filter((entry) => !entry.disable);
-        });
-
-      if (Object.keys(lorebooksData).length > 0) {
-        const lorebookPrompt = template({ lorebooks: lorebooksData });
-        if (lorebookPrompt) {
-          templateData['lorebookDefinitions'] = lorebookPrompt;
-        }
-      }
-    } catch (error: any) {
-      console.error('Error compiling or executing Handlebars template for lorebook definitions:', error);
-      throw new Error(`Error compiling or executing Handlebars template for lorebook definitions: ${error.message}`);
-    }
+    templateData['lorebooks'] = lorebooksData;
   }
 
   // Add Current Field Values (if enabled)
-  if (
-    contextToSend.existingFields &&
-    (session.fields || session.draftFields) &&
-    (Object.keys(session.fields).length > 0 || Object.keys(session.draftFields).length > 0)
-  ) {
-    try {
-      const template = Handlebars.compile(promptSettings.existingFieldDefinitions.content, { noEscape: true });
-      const coreFields: Record<string, string> = Object.fromEntries(
-        Object.entries(session.fields).map(([fieldName, field]) => [field.label, field.value]),
-      );
-      const draftFields: Record<string, string> = Object.fromEntries(
-        Object.entries(session.draftFields || {}).map(([fieldName, field]) => [field.label, field.value]),
-      );
-
-      // Combine core and draft fields for the template context
-      const allFields = {
-        core: coreFields,
-        draft: draftFields,
-      };
-
-      const existingFieldsPrompt = template({ fields: allFields });
-      if (existingFieldsPrompt) {
-        templateData['existingFieldDefinitions'] = existingFieldsPrompt;
-      }
-    } catch (error: any) {
-      console.error('Error compiling or executing Handlebars template for existing fields:', error);
-      throw new Error(`Error compiling or executing Handlebars template for existing fields: ${error.message}`);
-    }
-  }
-
-  // Add Output Format Instructions
-  templateData['outputFormatInstructions'] = formatDescription.content;
-
-  // Construct and Add Final User Task
   {
-    const template = Handlebars.compile(promptSettings.taskDescription.content, { noEscape: true });
-    const taskDescriptionPrompt = template({
-      userInstructions: processedUserPrompt,
-      // @ts-ignore
-      fieldSpecificInstructions: session.draftFields[targetField]?.prompt ?? session.fields[targetField]?.prompt,
-      targetField,
-    });
-    if (taskDescriptionPrompt) {
-      templateData['taskDescription'] = taskDescriptionPrompt;
-    }
-  }
+    const coreFields: Record<string, string> = Object.fromEntries(
+      Object.entries(session.fields).map(([_fieldName, field]) => [field.label, field.value]),
+    );
+    const draftFields: Record<string, string> = Object.fromEntries(
+      Object.entries(session.draftFields || {}).map(([_fieldName, field]) => [field.label, field.value]),
+    );
 
-  // Add user-added prompts
-  Object.entries(promptSettings)
-    .filter(([key]) => !SYSTEM_PROMPT_KEYS.includes(key))
-    .forEach(([key, value]) => {
-      templateData[key] = globalContext.substituteParams(value.content);
-    });
+    // Combine core and draft fields for the template context
+    const allFields = {
+      core: coreFields,
+      draft: draftFields,
+    };
 
-  /**
-   * Helper function to process a content block from the template.
-   */
-  function processContentBlock(
-    contentBlock: string,
-    roleForBlock: string,
-    templateData: Record<string, any>, // Use a more specific type if possible
-    chatMessages: Message[],
-    targetMessagesArray: Message[],
-  ): void {
-    if (!contentBlock) {
-      return; // Skip empty blocks
-    }
-
-    const template = Handlebars.compile(contentBlock, { noEscape: true });
-
-    if (contentBlock.includes('{{chatHistory}}')) {
-      // Check if rendering results in non-empty output *and* chat messages exist
-      const renderedCheck = template({ chatHistory: chatMessages.length > 0 ? chatMessages : undefined }).trim();
-      if (renderedCheck && chatMessages.length > 0) {
-        targetMessagesArray.push(...chatMessages); // Add chat history respecting its internal roles
-      }
-    } else {
-      // Handle regular content blocks
-      const renderedContent = template(templateData).trim();
-      if (renderedContent) {
-        // Basic role validation (adjust as needed for your specific supported roles)
-        const validRole = ['system', 'user', 'assistant'].includes(roleForBlock) ? roleForBlock : 'system';
-        targetMessagesArray.push({ role: validRole, content: renderedContent });
-      }
-    }
+    templateData['fields'] = allFields;
   }
 
   const messages: Message[] = [];
   {
-    const separatorRegex = /\[CREC_NEXT_MESSAGE(?:=([a-zA-Z]+))?\]/g;
-    const defaultRole = 'system'; // Default role if not specified
-    let lastIndex = 0;
-    let roleForNextBlock = defaultRole; // Role determined by the *previous* separator (or default)
-
-    let match;
-    while ((match = separatorRegex.exec(mainContextTemplate)) !== null) {
-      const contentBlock = mainContextTemplate.substring(lastIndex, match.index).trim();
-
-      // Process the block *before* the separator using the role determined by the PREVIOUS separator
-      processContentBlock(contentBlock, roleForNextBlock, templateData, chatMessages, messages);
-
-      // Determine role for the block *after* this separator
-      roleForNextBlock = match[1]?.toLowerCase() || defaultRole; // Use captured role or default, normalize
-      lastIndex = separatorRegex.lastIndex;
+    for (const mainContext of mainContextList) {
+      const prompt = promptSettings[mainContext.promptName];
+      if (!prompt) {
+        continue;
+      }
+      // Chat history is exception, since it is not a template
+      if (mainContext.promptName === 'chatHistory') {
+        const chatHistory = chatMessages.map((message) => ({
+          role: message.role,
+          content: message.content,
+        }));
+        messages.push(...chatHistory);
+        continue;
+      }
+      // Skip if the prompt is disabled
+      if (
+        SYSTEM_PROMPT_KEYS.includes(mainContext.promptName as SystemPromptKey) &&
+        !promptSettings[mainContext.promptName]
+      ) {
+        continue;
+      }
+      const message: Message = {
+        role: mainContext.role,
+        content: Handlebars.compile(prompt.content, { noEscape: true })(templateData),
+      };
+      message.content = message.content.replaceAll('{{user}}', '[[[crec_veryUniqueUserPlaceHolder]]]');
+      message.content = message.content.replaceAll('{{char}}', '[[[crec_veryUniqueCharPlaceHolder]]]');
+      message.content = globalContext.substituteParams(message.content);
+      message.content = message.content.replaceAll('[[[crec_veryUniqueUserPlaceHolder]]]', '{{user}}');
+      message.content = message.content.replaceAll('[[[crec_veryUniqueCharPlaceHolder]]]', '{{char}}');
+      if (message.content) {
+        messages.push(message);
+      }
     }
-
-    // Process the final content block after the last separator
-    const finalContentBlock = mainContextTemplate.substring(lastIndex).trim();
-    processContentBlock(finalContentBlock, roleForNextBlock, templateData, chatMessages, messages);
   }
 
   // console.log("Sending messages:", JSON.stringify(messages, null, 2)); // For debugging

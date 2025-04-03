@@ -3,8 +3,10 @@ import {
   buildFancyDropdown,
   buildPresetSelect,
   BuildPromptOptions,
+  buildSortableList,
   createCharacter,
   DropdownItem,
+  SortableListItemData,
 } from 'sillytavern-utils-lib';
 import { selected_group, st_echo, this_chid, world_names } from 'sillytavern-utils-lib/config';
 import { POPUP_TYPE } from 'sillytavern-utils-lib/types/popup';
@@ -13,7 +15,6 @@ import {
   globalContext,
   runCharacterFieldGeneration,
   Session,
-  ContextToSend,
   CharacterFieldName,
   CHARACTER_FIELDS,
   CharacterField,
@@ -29,13 +30,16 @@ import {
   PromptSetting,
   convertToVariableName,
   VERSION,
+  DEFAULT_SETTINGS,
+  MessageRole,
+  ContextToSend,
+  SystemPromptKey,
 } from './settings.js';
-import { DEFAULT_MAIN_CONTEXT_TEMPLATE } from './constants.js';
 import { Character, FullExportData } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 
-// @ts-ignore
-import { Handlebars } from '../../../../../lib.js';
+import * as Handlebars from 'handlebars';
+
 if (!Handlebars.helpers['join']) {
   Handlebars.registerHelper('join', function (array: any, separator: any) {
     if (Array.isArray(array)) {
@@ -44,14 +48,6 @@ if (!Handlebars.helpers['join']) {
     return '';
   });
 }
-
-Handlebars.registerHelper('ifValue', function (this: any, conditional: any, options: any) {
-  if (conditional && String(conditional).trim().length > 0) {
-    return options.fn(this);
-  } else {
-    return options.inverse(this);
-  }
-});
 
 async function handleSettingsUI() {
   const settingsHtml = await globalContext.renderExtensionTemplateAsync(
@@ -65,24 +61,42 @@ async function handleSettingsUI() {
 
   const settings = settingsManager.getSettings();
 
+  let setMainContextList: (list: SortableListItemData[]) => void;
+  let getMainContextList: () => SortableListItemData[];
   // --- Setup Main Context Template ---
   {
     const promptSelect = settingsContainer.querySelector('#charCreator_mainContextTemplatePreset') as HTMLSelectElement;
-    const promptTextarea = settingsContainer.querySelector(
-      '#charCreator_mainContextTemplateContent',
-    ) as HTMLTextAreaElement;
+    const promptList = settingsContainer.querySelector('#charCreator_mainContextList') as HTMLTextAreaElement;
     const restoreMainContextTemplateButton = settingsContainer.querySelector(
       '#charCreator_restoreMainContextTemplateDefault',
     ) as HTMLButtonElement;
 
-    promptTextarea.value = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset]?.content;
+    // promptTextarea.value = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset]?.content;
     buildPresetSelect('#charCreator_mainContextTemplatePreset', {
       initialList: Object.keys(settings.mainContextTemplatePresets),
       initialValue: settings.mainContextTemplatePreset,
       readOnlyValues: ['default'],
       onSelectChange(_, newValue) {
         const newPresetValue = newValue ?? 'default';
-        promptTextarea.value = settings.mainContextTemplatePresets[newPresetValue].content;
+        setList(
+          settings.mainContextTemplatePresets[newPresetValue].prompts.map((prompt) => {
+            let label = prompt.promptName;
+            if (settings.prompts[prompt.promptName]) {
+              label = `${settings.prompts[prompt.promptName].label} (${prompt.promptName})`;
+            }
+            return {
+              enabled: prompt.enabled,
+              id: prompt.promptName,
+              label,
+              selectOptions: [
+                { value: 'user', label: 'User' },
+                { value: 'assistant', label: 'Assistant' },
+                { value: 'system', label: 'System' },
+              ],
+              selectValue: prompt.role,
+            };
+          }),
+        );
 
         settings.mainContextTemplatePreset = newPresetValue;
         settingsManager.saveSettings();
@@ -109,11 +123,62 @@ async function handleSettingsUI() {
       },
     });
 
-    promptTextarea.addEventListener('change', () => {
-      const currentPreset = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset];
-      currentPreset.content = promptTextarea.value;
-      settingsManager.saveSettings();
+    const initialPromptList: SortableListItemData[] = settings.mainContextTemplatePresets[
+      settings.mainContextTemplatePreset
+    ].prompts.map((prompt) => {
+      let label = prompt.promptName;
+      if (settings.prompts[prompt.promptName]) {
+        label = `${settings.prompts[prompt.promptName].label} (${prompt.promptName})`;
+      }
+      return {
+        enabled: prompt.enabled,
+        id: prompt.promptName,
+        label,
+        selectOptions: [
+          { value: 'user', label: 'User' },
+          { value: 'assistant', label: 'Assistant' },
+          { value: 'system', label: 'System' },
+        ],
+        selectValue: prompt.role,
+      };
     });
+    const { setList, getList } = buildSortableList(promptList, {
+      initialList: initialPromptList,
+      showSelectInput: true,
+      showToggleButton: true,
+      onSelectChange(itemId, newValue) {
+        const item = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].prompts.find(
+          (prompt) => prompt.promptName === itemId,
+        );
+        if (item) {
+          item.role = newValue as MessageRole;
+          settingsManager.saveSettings();
+        }
+      },
+      onToggle(itemId, newState) {
+        const item = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].prompts.find(
+          (prompt) => prompt.promptName === itemId,
+        );
+        if (item) {
+          item.enabled = newState;
+          settingsManager.saveSettings();
+        }
+      },
+      onOrderChange(newItemOrderIds) {
+        const newOrder = newItemOrderIds
+          .map((id) => {
+            const item = settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].prompts.find(
+              (prompt) => prompt.promptName === id,
+            );
+            return item;
+          })
+          .filter((item) => item !== undefined);
+        settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].prompts = newOrder;
+        settingsManager.saveSettings();
+      },
+    });
+    setMainContextList = setList;
+    getMainContextList = getList;
 
     restoreMainContextTemplateButton.addEventListener('click', async () => {
       const confirm = await globalContext.Popup.show.confirm(
@@ -125,13 +190,31 @@ async function handleSettingsUI() {
       }
 
       settings.mainContextTemplatePresets['default'] = {
-        content: DEFAULT_MAIN_CONTEXT_TEMPLATE,
+        prompts: DEFAULT_SETTINGS.mainContextTemplatePresets['default'].prompts,
       };
       if (promptSelect.value !== 'default') {
         promptSelect.value = 'default';
         promptSelect.dispatchEvent(new Event('change'));
       } else {
-        promptTextarea.value = DEFAULT_MAIN_CONTEXT_TEMPLATE;
+        setList(
+          settings.mainContextTemplatePresets['default'].prompts.map((prompt) => {
+            let label = prompt.promptName;
+            if (settings.prompts[prompt.promptName]) {
+              label = `${settings.prompts[prompt.promptName].label} (${prompt.promptName})`;
+            }
+            return {
+              enabled: prompt.enabled,
+              id: prompt.promptName,
+              label,
+              selectOptions: [
+                { value: 'user', label: 'User' },
+                { value: 'assistant', label: 'Assistant' },
+                { value: 'system', label: 'System' },
+              ],
+              selectValue: prompt.role,
+            };
+          }),
+        );
         settingsManager.saveSettings();
       }
     });
@@ -181,6 +264,27 @@ async function handleSettingsUI() {
             isDefault: false,
             label: value,
           };
+          Object.entries(settings.mainContextTemplatePresets).forEach(([presetName, preset]) => {
+            preset.prompts.push({
+              enabled: true,
+              promptName: variableName,
+              role: 'user',
+            });
+          });
+          setMainContextList([
+            ...getMainContextList(),
+            {
+              enabled: true,
+              id: variableName,
+              label: `${value} (${variableName})`,
+              selectOptions: [
+                { value: 'user', label: 'User' },
+                { value: 'assistant', label: 'Assistant' },
+                { value: 'system', label: 'System' },
+              ],
+              selectValue: 'user',
+            },
+          ]);
 
           return variableName;
         },
@@ -203,12 +307,36 @@ async function handleSettingsUI() {
           const filteredValue = convertToVariableName(newValue);
           settings.prompts[filteredValue] = { ...settings.prompts[previousValue], label: newValue };
           delete settings.prompts[previousValue];
+          Object.entries(settings.mainContextTemplatePresets).forEach(([presetName, preset]) => {
+            preset.prompts.forEach((prompt) => {
+              if (prompt.promptName === previousValue) {
+                prompt.promptName = filteredValue;
+              }
+            });
+          });
+
+          setMainContextList(
+            getMainContextList().map((item) => {
+              if (item.id === previousValue) {
+                return {
+                  ...item,
+                  id: filteredValue,
+                  label: `${newValue} (${filteredValue})`,
+                };
+              }
+              return item;
+            }),
+          );
           return filteredValue;
         },
       },
       delete: {
         onAfterDelete(value) {
           delete settings.prompts[value];
+          Object.entries(settings.mainContextTemplatePresets).forEach(([presetName, preset]) => {
+            preset.prompts = preset.prompts.filter((prompt) => prompt.promptName !== value);
+          });
+          setMainContextList(getMainContextList().filter((item) => item.id !== value));
         },
       },
       onSelectChange(_, newValue) {
@@ -216,7 +344,9 @@ async function handleSettingsUI() {
         const promptSetting: PromptSetting | undefined = settings.prompts[newPresetValue];
         if (promptSetting) {
           promptTextarea.value = promptSetting.content ?? '';
-          restoreSystemPromptButton.style.display = SYSTEM_PROMPT_KEYS.includes(newPresetValue) ? 'block' : 'none';
+          restoreSystemPromptButton.style.display = SYSTEM_PROMPT_KEYS.includes(newPresetValue as SystemPromptKey)
+            ? 'block'
+            : 'none';
           settingsManager.saveSettings();
         }
       },
@@ -227,12 +357,14 @@ async function handleSettingsUI() {
     const prompSetting: PromptSetting | undefined = settings.prompts[selectedKey];
     if (prompSetting) {
       promptTextarea.value = prompSetting.content ?? '';
-      restoreSystemPromptButton.style.display = SYSTEM_PROMPT_KEYS.includes(selectedKey) ? 'block' : 'none';
+      restoreSystemPromptButton.style.display = SYSTEM_PROMPT_KEYS.includes(selectedKey as SystemPromptKey)
+        ? 'block'
+        : 'none';
     }
 
     // Event listener for textarea change
     promptTextarea.addEventListener('change', () => {
-      const selectedKey = promptSelect.value;
+      const selectedKey = promptSelect.value as SystemPromptKey;
       const currentContent = promptTextarea.value;
 
       const prompSetting: PromptSetting | undefined = settings.prompts[selectedKey];
@@ -247,7 +379,7 @@ async function handleSettingsUI() {
     });
 
     restoreSystemPromptButton.addEventListener('click', async () => {
-      const selectedKey = promptSelect.value;
+      const selectedKey = promptSelect.value as SystemPromptKey;
       const defaultContent = DEFAULT_PROMPT_CONTENTS[selectedKey];
       const promptSetting: PromptSetting | undefined = settings.prompts[selectedKey];
       if (promptSetting) {
@@ -1176,19 +1308,43 @@ async function handlePopupUI() {
             fields: typedFields,
           };
 
+          const promptSettings = structuredClone(settings.prompts);
+          if (!settings.contextToSend.stDescription) {
+            // @ts-ignore
+            delete promptSettings.stDescription;
+          }
+          if (!settings.contextToSend.charCard || activeSession.selectedCharacterIndexes.length === 0) {
+            // @ts-ignore
+            delete promptSettings.charDefinitions;
+          }
+          if (!settings.contextToSend.worldInfo || activeSession.selectedWorldNames.length === 0) {
+            // @ts-ignore
+            delete promptSettings.lorebookDefinitions;
+          }
+          if (!settings.contextToSend.existingFields) {
+            // @ts-ignore
+            delete promptSettings.existingFieldDefinitions;
+          }
+          // @ts-ignore - since this is only for saving as world info entry
+          delete promptSettings.worldInfoCharDefinition;
+
           const generatedContent = await runCharacterFieldGeneration({
             profileId: settings.profileId,
             userPrompt: userPrompt,
             buildPromptOptions: buildPromptOptions,
-            contextToSend: settings.contextToSend,
             session: sessionForGeneration,
             allCharacters: context.characters,
             entriesGroupByWorldName: entriesGroupByWorldName,
-            promptSettings: settings.prompts,
+            promptSettings,
             formatDescription: {
               content: formatDescription,
             },
-            mainContextTemplate: settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].content,
+            mainContextList: settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].prompts
+              .filter((p) => p.enabled)
+              .map((p) => ({
+                promptName: p.promptName,
+                role: p.role,
+              })),
             maxResponseToken: settings.maxResponseToken,
             targetField: targetField,
             outputFormat: settings.outputFormat,
@@ -1267,11 +1423,7 @@ if (!stagingCheck()) {
           settingsChanged = true; // Assume change if migration logic runs
 
           // Helper to migrate a single prompt
-          const migratePrompt = (
-            newKey: keyof typeof settings.prompts,
-            oldContentKey: string,
-            oldDefaultFlagKey: string,
-          ) => {
+          const migratePrompt = (newKey: SystemPromptKey, oldContentKey: string, oldDefaultFlagKey: string) => {
             if (result.oldSettings[oldContentKey] !== undefined) {
               settings.prompts[newKey].content = result.oldSettings[oldContentKey];
               // Determine isDefault based on the old flag OR by comparing content if flag is missing
@@ -1321,7 +1473,7 @@ if (!stagingCheck()) {
         });
 
         settings.mainContextTemplatePresets['default'] = {
-          content: DEFAULT_MAIN_CONTEXT_TEMPLATE,
+          prompts: DEFAULT_SETTINGS.mainContextTemplatePresets['default'].prompts,
         };
         settingsChanged = true;
 
@@ -1334,6 +1486,17 @@ if (!stagingCheck()) {
             settingsChanged = true;
           });
         }
+        if (result.version.new === '0.1.7') {
+          const keys = Object.keys(settings.mainContextTemplatePresets);
+          for (const key of keys) {
+            delete settings.mainContextTemplatePresets[key];
+          }
+          settings.mainContextTemplatePresets['default'] = {
+            prompts: DEFAULT_SETTINGS.mainContextTemplatePresets['default'].prompts,
+          };
+          settings.mainContextTemplatePreset = 'default';
+        }
+        st_echo('success', `[${extensionName}] Now we can reorder the promps and change roles in the settings.`);
       }
 
       if (settingsChanged) {

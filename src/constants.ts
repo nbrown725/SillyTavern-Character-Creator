@@ -1,31 +1,3 @@
-export const DEFAULT_MAIN_CONTEXT_TEMPLATE = `{{#if chatHistory}}
-{{chatHistory}}
-{{/if}}
-[CREC_NEXT_MESSAGE]
-{{#if stDescription}}
-{{stDescription}}
-{{/if}}
-[CREC_NEXT_MESSAGE]
-{{#if charDefinitions}}
-{{charDefinitions}}
-{{/if}}
-[CREC_NEXT_MESSAGE]
-{{#if lorebookDefinitions}}
-{{lorebookDefinitions}}
-{{/if}}
-[CREC_NEXT_MESSAGE]
-{{#if existingFieldDefinitions}}
-{{existingFieldDefinitions}}
-{{/if}}
-[CREC_NEXT_MESSAGE]
-{{#if outputFormatInstructions}}
-{{outputFormatInstructions}}
-{{/if}}
-[CREC_NEXT_MESSAGE=user]
-{{#if taskDescription}}
-{{taskDescription}}
-{{/if}}`;
-
 export const DEFAULT_CHAR_CARD_DESCRIPTION = `=======
 
 When creating a **character card** in SillyTavern, you can define a structured profile to guide the AI's behavior and ensure consistency in roleplay or storytelling. Below are the common fields and their purposes, based on community templates and best practices:
@@ -196,6 +168,8 @@ Example:
 \`\`\`
 Generated content for the field goes here.
 \`\`\``;
+
+export const DEFAULT_OUTPUT_FORMAT_INSTRUCTIONS = '{{activeFormatInstructions}}';
 
 export const DEFAULT_LOREBOOK_DEFINITION = `## Selected Lorebooks for Context
 {{#each lorebooks}}
