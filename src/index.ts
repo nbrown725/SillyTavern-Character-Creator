@@ -537,7 +537,7 @@ async function handlePopupUI() {
         rangeXDiv.style.display = type === 'range' ? 'block' : 'none';
       };
       updateMessageInputVisibility(messageTypeSelect.value);
-      if (settings.contextToSend.messages.type === 'none' && this_chid === undefined && !selected_group) {
+      if (this_chid === undefined && !selected_group) {
         messageOptionsContainer.style.display = 'none';
       }
 
