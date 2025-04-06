@@ -761,6 +761,7 @@ async function handlePopupUI() {
           textarea: HTMLTextAreaElement;
           button: HTMLButtonElement;
           promptTextarea?: HTMLTextAreaElement;
+          clearButton?: HTMLButtonElement;
         }
       > = {};
 
@@ -795,10 +796,10 @@ async function handlePopupUI() {
         const clone = coreFieldTemplate.content.cloneNode(true) as DocumentFragment;
 
         // Configure the cloned elements
-        const fieldDiv = clone.querySelector('.character-field') as HTMLElement;
         const label = clone.querySelector('label') as HTMLLabelElement;
         const textarea = clone.querySelector('.field-value-textarea') as HTMLTextAreaElement; // Use specific class
         const button = clone.querySelector('.generate-field-button') as HTMLButtonElement;
+        const clearButton = clone.querySelector('.clear-field-button') as HTMLButtonElement;
         const promptTextarea = clone.querySelector('.field-prompt-textarea') as HTMLTextAreaElement; // Use specific class
 
         // Set IDs and attributes
@@ -823,11 +824,18 @@ async function handlePopupUI() {
           textarea.closest('.field-container')?.classList.add('large-field');
         }
 
+        // Event listener for clear button (Core Fields)
+        clearButton?.addEventListener('click', () => {
+          textarea.value = '';
+          textarea.dispatchEvent(new Event('change')); // Trigger change to update session
+        });
+
         // Store references
         coreFieldElements[fieldName] = {
           textarea,
           button,
           promptTextarea,
+          clearButton,
         };
 
         coreFieldsContainer.appendChild(clone);
@@ -844,6 +852,7 @@ async function handlePopupUI() {
         const promptTextarea = clone.querySelector('.field-prompt-textarea') as HTMLTextAreaElement;
         const deleteButton = clone.querySelector('.delete-draft-field-button') as HTMLButtonElement;
         const generateButton = clone.querySelector('.generate-field-button') as HTMLButtonElement;
+        const clearButton = clone.querySelector('.clear-field-button') as HTMLButtonElement;
 
         fieldDiv.dataset.draftFieldName = fieldName;
         label.textContent = fieldData.label; // Use the key as the label for now
@@ -856,6 +865,7 @@ async function handlePopupUI() {
         deleteButton.dataset.draftFieldName = fieldName;
         generateButton.dataset.field = fieldName;
 
+        clearButton.dataset.draftFieldName = fieldName;
         // Event listener for value change
         textarea.addEventListener('change', () => {
           if (activeSession.draftFields[fieldName]) {
@@ -868,6 +878,15 @@ async function handlePopupUI() {
         promptTextarea.addEventListener('change', () => {
           if (activeSession.draftFields[fieldName]) {
             activeSession.draftFields[fieldName].prompt = promptTextarea.value;
+            saveSession();
+          }
+        });
+
+        // Event listener for clear button (Draft Fields)
+        clearButton.addEventListener('click', () => {
+          if (activeSession.draftFields[fieldName]) {
+            textarea.value = ''; // Clear the textarea visually
+            activeSession.draftFields[fieldName].value = ''; // Update the session data
             saveSession();
           }
         });
