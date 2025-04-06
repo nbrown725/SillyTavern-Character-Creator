@@ -92,22 +92,19 @@ Teaches the AI the character's **speech patterns**, **formatting preferences**, 
 
 ---
 
-### **Advanced Tips**
-- **Avoid "Wall of Text"**: Use line breaks and punctuation to improve readability for the AI.
+### **7. Alternate Greetings**
+**Purpose**:
+Provides alternative opening messages for the character, allowing for variety or context-specific starts. Similar in function and structure to the **First Message** field.
+**Tips**:
+- Keep greetings consistent with the character's personality.
+- Use placeholders like \`{{user}}\` if needed.
+**Example**:
+\`*{{char}} offers a hesitant smile.* "Welcome... I wasn't expecting visitors."\`
 
 ---
 
-### **Example Character Card Snippet**
-\`\`\`json
-{
-  "name": "Kael Stormveil",
-  "description": "A storm sorcerer with crackling electricity in his eyes. Wears a cloak woven from thunderclouds. Pragmatic to a fault, but secretly fears losing control of his powers.",
-  "personality": "Analytical, blunt, distrusts authority. Motto: 'Chaosis just order waiting to be deciphered.'",
-  "scenario": "A floating library during a magical hurricane. {{user}} is a novice mage Kael reluctantly mentors.",
-  "first_message": "*Kael's hands spark as he slams a tome shut.* 'You've got five minutes to explain why I shouldn't toss you into the storm.'",
-  "example_dialogue": "{{user}}: Can you teach me to control the storm?\n{{char}}: *Snorts.* 'Control is an illusion. You ride the storm or drown.'"
-}
-\`\`\`
+### **8. Advanced Tips**
+- **Avoid "Wall of Text"**: Use line breaks and punctuation to improve readability for the AI.
 
 =======`;
 
@@ -133,6 +130,13 @@ export const DEFAULT_CHAR_CARD_DEFINITION_TEMPLATE = `## Selected Characters for
 {{#if this.mes_example}}
 #### Example Dialogue
 {{this.mes_example}}
+{{/if}}
+{{#if this.alternate_greetings}}
+#### Alternate Greetings
+{{#each this.alternate_greetings}}
+### {{add @index 1}}
+{{this}}
+{{/each}}
 {{/if}}
 
 {{/each}}`;
@@ -190,12 +194,25 @@ export const DEFAULT_WORLD_INFO_CHARACTER_DEFINITION = `### {{character.name}}
 - **Scenario:** {{#if character.scenario}}{{character.scenario}}{{else}}*Not provided*{{/if}}
 - **First Message:** {{#if character.first_mes}}{{character.first_mes}}{{else}}*Not provided*{{/if}}
 - **Example Dialogue:**
-  {{#if character.mes_example}}{{character.mes_example}}{{else}}*Not provided*{{/if}}`;
+  {{#if character.mes_example}}{{character.mes_example}}{{else}}*Not provided*{{/if}}
+- **Alternate Greetings:**
+  {{#if character.alternate_greetings}}
+  {{#each character.alternate_greetings}}
+  **{{add @index 1}}:** {{this}}
+  {{/each}}
+  {{else}}*Not provided*{{/if}}`;
 
 export const DEFAULT_EXISTING_FIELDS_DEFINITION = `=== CURRENT CHARACTER FIELD VALUES ===
 {{#if fields.core}}
 **Core Fields:**
 {{#each fields.core as |value key|}}
+- **{{key}}:** {{#if value}}{{value}}{{else}}*Not provided*{{/if}}
+{{/each}}
+{{/if}}
+
+{{#if fields.alternate_greetings}}
+**Alternate Greetings:**
+{{#each fields.alternate_greetings as |value key|}}
 - **{{key}}:** {{#if value}}{{value}}{{else}}*Not provided*{{/if}}
 {{/each}}
 {{/if}}

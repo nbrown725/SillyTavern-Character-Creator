@@ -16,8 +16,8 @@ import {
 import { globalContext } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
-export const VERSION = '0.1.8';
-export const FORMAT_VERSION = 'F_1.5';
+export const VERSION = '0.1.9';
+export const FORMAT_VERSION = 'F_1.6';
 
 export const KEYS = {
   EXTENSION: 'charCreator',
@@ -532,6 +532,41 @@ export async function initializeSettings(): Promise<void> {
                         role: 'user',
                       },
                     ],
+                  },
+                },
+              };
+            },
+          },
+          {
+            from: 'F_1.5',
+            to: 'F_1.6',
+            async action(previous: { prompts: Record<SystemPromptKey, PromptSetting> }): Promise<{
+              prompts: Record<SystemPromptKey, PromptSetting>;
+            }> {
+              await st_echo('info', `[${extensionName}] Added Alternate Greetings.`);
+              return {
+                ...previous,
+                prompts: {
+                  ...previous?.prompts,
+                  stDescription: {
+                    content: DEFAULT_PROMPT_CONTENTS.stDescription,
+                    isDefault: true,
+                    label: 'ST/Char Card Description',
+                  },
+                  charDefinitions: {
+                    content: DEFAULT_PROMPT_CONTENTS.charDefinitions,
+                    isDefault: true,
+                    label: 'Character Definition Template',
+                  },
+                  worldInfoCharDefinition: {
+                    content: DEFAULT_PROMPT_CONTENTS.worldInfoCharDefinition,
+                    isDefault: true,
+                    label: 'World Info Character Definition Template',
+                  },
+                  existingFieldDefinitions: {
+                    content: DEFAULT_EXISTING_FIELDS_DEFINITION,
+                    isDefault: true,
+                    label: 'Existing Fields Definition Template',
                   },
                 },
               };

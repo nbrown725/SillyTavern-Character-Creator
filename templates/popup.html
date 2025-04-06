@@ -242,6 +242,61 @@
                             </div>
                         </div>
                     </template>
+                    <!-- Template for Alternate Greetings Section -->
+                    <template id="charCreator_alternateGreetingsTemplate">
+                        <div class="character-field core-field alternate-greetings-field">
+                            <label>Alternate Greetings</label>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px">
+                                <!-- Container for tabs and add button -->
+                                <div
+                                    class="alternate-greetings-tabs"
+                                    style="display: flex; flex-wrap: wrap; gap: 5px; flex-grow: 1"
+                                >
+                                    <!-- Tab buttons will be added dynamically here -->
+                                </div>
+                                <button
+                                    class="menu_button add-alternate-greeting-button"
+                                    title="Add a new alternate greeting"
+                                >
+                                    <i class="fa-solid fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <!-- Placeholder for when no greetings exist -->
+                            <p class="subtle no-greetings-placeholder" style="display: none; margin-bottom: 10px">
+                                No alternate greetings defined. Click "Add" to create one.
+                            </p>
+                            <div class="field-container">
+                                <!-- Mimic draft field structure -->
+                                <div class="alternate-greetings-content-area" style="flex-grow: 1">
+                                    <!-- Tab content (containing textareas) will be added dynamically here -->
+                                </div>
+                                <div style="display: flex; flex-direction: column">
+                                    <!-- Side buttons container -->
+                                    <button
+                                        class="menu_button generate-alternate-greeting-button"
+                                        title="Generate content for the current greeting"
+                                        disabled
+                                    >
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    </button>
+                                    <button
+                                        class="menu_button clear-alternate-greeting-button"
+                                        title="Clear content for the current greeting"
+                                        disabled
+                                    >
+                                        <i class="fa-solid fa-eraser"></i>
+                                    </button>
+                                    <button
+                                        class="menu_button delete-alternate-greeting-button"
+                                        title="Delete this alternate greeting"
+                                        disabled
+                                    >
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- Draft Fields Tab -->
@@ -266,10 +321,32 @@
                                     <button class="menu_button clear-field-button" title="Clear field content">
                                         <i class="fa-solid fa-eraser"></i>
                                     </button>
+                                    <button class="menu_button delete-draft-field-button" title="Delete Draft Field">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
                                 </div>
                             </div>
                             <div class="field-prompt-container">
                                 <textarea class="text_pole textarea_compact field-prompt-textarea" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Template for a single greeting tab content -->
+                    <template id="charCreator_alternateGreetingTabContentTemplate">
+                        <div class="alternate-greeting-tab-content" style="display: none">
+                            <textarea
+                                class="text_pole textarea_compact field-value-textarea alternate-greeting-textarea"
+                                rows="4"
+                                placeholder="Enter greeting content..."
+                            ></textarea>
+                            <div class="field-prompt-container" style="margin-top: 5px">
+                                <!-- Added prompt container -->
+                                <textarea
+                                    class="text_pole textarea_compact field-prompt-textarea alternate-greeting-prompt-textarea"
+                                    rows="2"
+                                    placeholder="Enter specific prompt for this greeting..."
+                                ></textarea>
                             </div>
                         </div>
                     </template>

@@ -39,7 +39,7 @@ export interface CharacterField {
 export interface Session {
   selectedCharacterIndexes: string[];
   selectedWorldNames: string[];
-  fields: Record<CharacterFieldName, CharacterField>;
+  fields: Record<string, CharacterField>;
   draftFields: Record<string, CharacterField>;
 }
 
@@ -151,26 +151,34 @@ export async function runCharacterFieldGeneration({
 
   // Add Current Field Values (if enabled)
   {
-    const coreFields: Record<string, string> = Object.fromEntries(
-      Object.entries(session.fields).map(([fieldName, field]) => [
-        field.label,
-        Handlebars.compile(field.value, { noEscape: true })({
-          ...templateData,
-          char: fieldName === 'mes_example' ? '{{char}}' : templateData.char,
-          user: fieldName === 'mes_example' ? '{{user}}' : templateData.user,
-        }),
-      ]),
-    );
-    const draftFields: Record<string, string> = Object.fromEntries(
-      Object.entries(session.draftFields || {}).map(([_fieldName, field]) => [
-        field.label,
-        Handlebars.compile(field.value, { noEscape: true })(templateData),
-      ]),
-    );
+    // Separate core fields, alternate greetings, and draft fields for template context
+    const coreFields: Record<string, string> = {};
+    const alternateGreetingsFields: Record<string, string> = {};
+    const draftFields: Record<string, string> = {};
 
-    // Combine core and draft fields for the template context
+    Object.entries(session.fields).forEach(([fieldName, field]) => {
+      const compiledValue = Handlebars.compile(field.value, { noEscape: true })({
+        ...templateData,
+
+        char: fieldName === 'mes_example' ? '{{char}}' : templateData.char,
+        user: fieldName === 'mes_example' ? '{{user}}' : templateData.user,
+      });
+
+      if (CHARACTER_FIELDS.includes(fieldName as CharacterFieldName)) {
+        coreFields[field.label] = compiledValue;
+      } else if (fieldName.startsWith('alternate_greetings_')) {
+        const index = parseInt(fieldName.split('_')[2]);
+        alternateGreetingsFields[fieldName] = compiledValue;
+      }
+    });
+
+    Object.entries(session.draftFields || {}).forEach(([_fieldName, field]) => {
+      draftFields[field.label] = Handlebars.compile(field.value, { noEscape: true })(templateData);
+    });
+
     const allFields = {
       core: coreFields,
+      alternate_greetings: alternateGreetingsFields,
       draft: draftFields,
     };
 

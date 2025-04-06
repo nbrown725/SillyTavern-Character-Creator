@@ -790,17 +790,212 @@ async function handlePopupUI() {
 
       setActiveTab('charCreator_coreFieldsContainer');
 
+      // Function to get sorted alternate greeting field names
+      const getAlternateGreetingFieldNames = (): string[] => {
+        return Object.keys(activeSession.fields)
+          .filter((key) => key.startsWith('alternate_greetings_'))
+          .sort((a, b) => {
+            const indexA = parseInt(a.split('_')[2] || '0');
+            const indexB = parseInt(b.split('_')[2] || '0');
+            return indexA - indexB;
+          });
+      };
+
+      // Function to render the alternate greetings UI within the core fields container
+      let activeTabIndex = 0;
+      const renderAlternateGreetingsUI = (parentElement: HTMLElement) => {
+        const agTemplate = popupContainer.querySelector(
+          '#charCreator_alternateGreetingTabContentTemplate',
+        ) as HTMLTemplateElement;
+        const tabButtonContainer = parentElement.querySelector('.alternate-greetings-tabs') as HTMLDivElement;
+        const contentArea = parentElement.querySelector('.alternate-greetings-content-area') as HTMLDivElement;
+        const placeholder = parentElement.querySelector('.no-greetings-placeholder') as HTMLParagraphElement;
+        const addButton = parentElement.querySelector('.add-alternate-greeting-button') as HTMLButtonElement;
+        const deleteButton = parentElement.querySelector('.delete-alternate-greeting-button') as HTMLButtonElement;
+        const sideButtonContainer = parentElement.querySelector('.field-container > div:last-child');
+        const generateButton = sideButtonContainer?.querySelector(
+          '.generate-alternate-greeting-button',
+        ) as HTMLButtonElement;
+        const clearButton = sideButtonContainer?.querySelector('.clear-alternate-greeting-button') as HTMLButtonElement;
+
+        tabButtonContainer.innerHTML = '';
+        contentArea.innerHTML = '';
+
+        const greetingFieldNames = getAlternateGreetingFieldNames();
+
+        const switchTab = (index: number) => {
+          activeTabIndex = index;
+          tabButtonContainer.querySelectorAll('.alternate-greeting-tab-button').forEach((btn, i) => {
+            btn.classList.toggle('active', i === index);
+          });
+          contentArea.querySelectorAll('.alternate-greeting-tab-content').forEach((contentDiv, i) => {
+            (contentDiv as HTMLElement).style.display = i === index ? 'block' : 'none';
+          });
+          const hasGreetings = greetingFieldNames.length > 0;
+          generateButton.disabled = !hasGreetings;
+          clearButton.disabled = !hasGreetings;
+          deleteButton.disabled = !hasGreetings; // Enable/disable delete button
+        };
+
+        if (greetingFieldNames.length === 0) {
+          placeholder.style.display = 'block';
+          contentArea.style.display = 'none';
+          generateButton.disabled = true;
+          clearButton.disabled = true;
+          deleteButton.disabled = true;
+        } else {
+          placeholder.style.display = 'none';
+          contentArea.style.display = 'block';
+
+          greetingFieldNames.forEach((fieldName, index) => {
+            const greetingField = activeSession.fields[fieldName];
+            if (!greetingField) return; // Should not happen, but safety check
+
+            // Create Tab Button
+            const tabButton = document.createElement('button');
+            tabButton.className = 'menu_button alternate-greeting-tab-button';
+            tabButton.textContent = `Greeting ${index + 1}`;
+            tabButton.dataset.index = index.toString();
+            tabButton.addEventListener('click', () => switchTab(index));
+            tabButtonContainer.appendChild(tabButton);
+
+            // Create Tab Content
+            const contentClone = agTemplate.content.cloneNode(true) as DocumentFragment;
+            const valueTextarea = contentClone.querySelector('.alternate-greeting-textarea') as HTMLTextAreaElement;
+            const promptTextarea = contentClone.querySelector(
+              '.alternate-greeting-prompt-textarea',
+            ) as HTMLTextAreaElement;
+
+            valueTextarea.value = greetingField.value ?? '';
+            promptTextarea.value = greetingField.prompt ?? '';
+
+            // Add change listener for value textarea
+            valueTextarea.addEventListener('change', () => {
+              if (activeSession.fields[fieldName]) {
+                activeSession.fields[fieldName].value = valueTextarea.value;
+                saveSession();
+              }
+            });
+
+            // Add change listener for prompt textarea
+            promptTextarea.addEventListener('change', () => {
+              if (activeSession.fields[fieldName]) {
+                activeSession.fields[fieldName].prompt = promptTextarea.value;
+                saveSession();
+              }
+            });
+
+            contentArea.appendChild(contentClone);
+          });
+
+          // Initial tab state
+          switchTab(0);
+        }
+
+        // --- Setup Control Buttons ---
+        const newAddButton = addButton.cloneNode(true) as HTMLButtonElement;
+        addButton.parentNode?.replaceChild(newAddButton, addButton);
+        const newDeleteButton = deleteButton.cloneNode(true) as HTMLButtonElement;
+        deleteButton.parentNode?.replaceChild(newDeleteButton, deleteButton);
+        const newGenerateButton = generateButton.cloneNode(true) as HTMLButtonElement;
+        generateButton.parentNode?.replaceChild(newGenerateButton, generateButton);
+        const newClearButton = clearButton.cloneNode(true) as HTMLButtonElement;
+        clearButton.parentNode?.replaceChild(newClearButton, clearButton);
+
+        // Add Button Listener
+        newAddButton.addEventListener('click', () => {
+          const nextIndex = greetingFieldNames.length;
+          const newFieldName = `alternate_greetings_${nextIndex}`;
+          activeSession.fields[newFieldName] = { prompt: '', value: '', label: `Alternate Greeting ${nextIndex + 1}` };
+          saveSession();
+          renderAlternateGreetingsUI(parentElement); // Re-render
+          switchTab(nextIndex);
+        });
+
+        // Delete Button Listener
+        newDeleteButton.addEventListener('click', async () => {
+          if (activeTabIndex < 0 || activeTabIndex >= greetingFieldNames.length) return;
+
+          const fieldNameToDelete = greetingFieldNames[activeTabIndex];
+          const confirm = await globalContext.Popup.show.confirm(
+            'Delete Greeting',
+            `Are you sure you want to delete Greeting ${activeTabIndex + 1}? This cannot be undone.`,
+          );
+          if (confirm) {
+            delete activeSession.fields[fieldNameToDelete];
+            // Re-index subsequent greetings
+            const subsequentFieldNames = greetingFieldNames.slice(activeTabIndex + 1);
+            subsequentFieldNames.forEach((oldName, i) => {
+              const newIndex = activeTabIndex + i;
+              const newName = `alternate_greetings_${newIndex}`;
+              if (oldName !== newName) {
+                activeSession.fields[newName] = activeSession.fields[oldName];
+                activeSession.fields[newName].label = `Alternate Greeting ${newIndex + 1}`;
+                delete activeSession.fields[oldName];
+              }
+            });
+
+            saveSession();
+            renderAlternateGreetingsUI(parentElement); // Re-render
+            // Adjust active tab if the last one was deleted
+            const newFieldNames = getAlternateGreetingFieldNames();
+            if (newFieldNames.length > 0) {
+              switchTab(Math.min(activeTabIndex, newFieldNames.length - 1));
+            }
+          }
+        });
+
+        // Generate Button Listener
+        newGenerateButton.addEventListener('click', () => {
+          if (activeTabIndex < 0 || activeTabIndex >= greetingFieldNames.length) return;
+          const targetFieldName = greetingFieldNames[activeTabIndex];
+          const contentDiv = contentArea.querySelectorAll('.alternate-greeting-tab-content')[activeTabIndex];
+          const textarea = contentDiv?.querySelector('.alternate-greeting-textarea') as HTMLTextAreaElement | null;
+
+          handleFieldGeneration({
+            targetField: targetFieldName,
+            button: newGenerateButton,
+            textarea: textarea!,
+            isDraft: false,
+          });
+        });
+
+        // Clear Button Listener
+        newClearButton.addEventListener('click', () => {
+          if (activeTabIndex < 0 || activeTabIndex >= greetingFieldNames.length) return;
+          const targetFieldName = greetingFieldNames[activeTabIndex];
+          const contentDiv = contentArea.querySelectorAll('.alternate-greeting-tab-content')[activeTabIndex];
+          const valueTextarea = contentDiv?.querySelector('.alternate-greeting-textarea') as HTMLTextAreaElement | null;
+          const promptTextarea = contentDiv?.querySelector(
+            '.alternate-greeting-prompt-textarea',
+          ) as HTMLTextAreaElement | null;
+
+          if (activeSession.fields[targetFieldName]) {
+            if (valueTextarea) valueTextarea.value = '';
+            if (promptTextarea) promptTextarea.value = '';
+            activeSession.fields[targetFieldName].value = '';
+            activeSession.fields[targetFieldName].prompt = '';
+            saveSession();
+          }
+        });
+      };
+
       // Generate core fields from template
       CHARACTER_FIELDS.forEach((fieldName) => {
-        const config = fieldConfigs[fieldName];
+        // Type guard to ensure fieldName is a key of fieldConfigs
+        if (!(fieldName in fieldConfigs)) {
+          console.warn(`Skipping unknown core field: ${fieldName}`);
+          return;
+        }
+        const config = fieldConfigs[fieldName as keyof typeof fieldConfigs];
         const clone = coreFieldTemplate.content.cloneNode(true) as DocumentFragment;
 
         // Configure the cloned elements
         const label = clone.querySelector('label') as HTMLLabelElement;
-        const textarea = clone.querySelector('.field-value-textarea') as HTMLTextAreaElement; // Use specific class
+        const textarea = clone.querySelector('.field-value-textarea') as HTMLTextAreaElement;
         const button = clone.querySelector('.generate-field-button') as HTMLButtonElement;
         const clearButton = clone.querySelector('.clear-field-button') as HTMLButtonElement;
-        const promptTextarea = clone.querySelector('.field-prompt-textarea') as HTMLTextAreaElement; // Use specific class
+        const promptTextarea = clone.querySelector('.field-prompt-textarea') as HTMLTextAreaElement;
 
         // Set IDs and attributes
         textarea.id = `charCreator_field_${fieldName}`;
@@ -810,11 +1005,13 @@ async function handlePopupUI() {
 
         // Set content
         textarea.rows = config.rows;
-        textarea.value = activeSession.fields[fieldName]?.value ?? '';
+
+        const fieldData = activeSession.fields[fieldName];
+        textarea.value = fieldData?.value ?? '';
         button.dataset.field = fieldName;
         button.title = `Generate ${config.label}`;
         promptTextarea.placeholder = `Enter additional prompt for ${config.label.toLowerCase()}...`;
-        promptTextarea.value = activeSession.fields[fieldName]?.prompt ?? '';
+        promptTextarea.value = fieldData?.prompt ?? '';
 
         if (!config.promptEnabled) {
           promptTextarea.closest('.field-prompt-container')?.remove();
@@ -840,6 +1037,15 @@ async function handlePopupUI() {
 
         coreFieldsContainer.appendChild(clone);
       });
+
+      // --- Render Alternate Greetings using its template ---
+      const agTemplateElement = popupContainer.querySelector(
+        '#charCreator_alternateGreetingsTemplate',
+      ) as HTMLTemplateElement;
+      const agContent = agTemplateElement.content.cloneNode(true) as DocumentFragment;
+      const agFieldElement = agContent.querySelector('.alternate-greetings-field') as HTMLElement;
+      coreFieldsContainer.appendChild(agContent); // Append the whole template content
+      renderAlternateGreetingsUI(agFieldElement); // Initialize UI logic within the appended element
 
       // --- Render Draft Fields ---
       const renderDraftField = (fieldName: string, fieldData: CharacterField) => {
@@ -998,7 +1204,7 @@ async function handlePopupUI() {
             return;
           }
 
-          if (activeSession.draftFields[fieldName] || fieldConfigs[fieldName as CharacterFieldName]) {
+          if (activeSession.draftFields[fieldName] || CHARACTER_LABELS[fieldName as CharacterFieldName]) {
             st_echo('warning', `Field name "${fieldName}" already exists.`);
             return;
           }
@@ -1057,21 +1263,57 @@ async function handlePopupUI() {
               return;
             }
 
-            // Load the character fields
+            // Load core character fields
             CHARACTER_FIELDS.forEach((fieldName) => {
-              const textarea = coreFieldElements[fieldName]?.textarea;
-              const promptTextarea = coreFieldElements[fieldName]?.promptTextarea;
+              const elements = coreFieldElements[fieldName];
+              if (elements) {
+                // Check if elements exist (not null)
+                const textarea = elements.textarea;
+                const promptTextarea = elements.promptTextarea;
+                const fieldData = activeSession.fields[fieldName];
 
-              if (textarea) {
-                // @ts-ignore
-                textarea.value = character[fieldName] ?? '';
-                textarea.dispatchEvent(new Event('change'));
-              }
-              if (promptTextarea && promptTextarea.value.trim() !== '') {
-                promptTextarea.value = '';
-                promptTextarea.dispatchEvent(new Event('change'));
+                // @ts-ignore - Accessing character fields directly
+                const charValue = character[fieldName] ?? character.data?.[fieldName] ?? ''; // Check data field too
+                if (textarea.value !== charValue) {
+                  textarea.value = charValue;
+                  if (fieldData) fieldData.value = charValue; // Update session
+                }
+
+                // Clear specific prompts when loading a character
+                if (promptTextarea && fieldData?.prompt) {
+                  promptTextarea.value = '';
+                  fieldData.prompt = ''; // Update session
+                }
               }
             });
+
+            // Clear existing alternate greetings fields before loading new ones
+            getAlternateGreetingFieldNames().forEach((fieldName) => {
+              delete activeSession.fields[fieldName];
+            });
+
+            // Load alternate greetings from character data (assuming it's string[])
+            const greetingsData = character.data?.alternate_greetings ?? [];
+            if (Array.isArray(greetingsData)) {
+              greetingsData.forEach((greeting: string, index: number) => {
+                const fieldName = `alternate_greetings_${index}`;
+                activeSession.fields[fieldName] = {
+                  value: greeting,
+                  prompt: '', // Initialize prompt as empty
+                  label: `Alternate Greeting ${index + 1}`,
+                };
+              });
+            }
+
+            // Re-render the alternate greetings UI
+            const agFieldElement = coreFieldsContainer?.querySelector(
+              '.alternate-greetings-field',
+            ) as HTMLElement | null;
+            if (agFieldElement) {
+              renderAlternateGreetingsUI(agFieldElement);
+            }
+
+            saveSession(); // Save session after loading all fields
           },
         });
       }
@@ -1083,16 +1325,33 @@ async function handlePopupUI() {
           'Are you sure? This will reset core fields and remove draft fields. This cannot be undone.',
         );
         if (confirm) {
+          // Reset core fields
           CHARACTER_FIELDS.forEach((fieldName) => {
-            if (coreFieldElements[fieldName]?.textarea) {
-              coreFieldElements[fieldName].textarea.value = '';
-              coreFieldElements[fieldName].textarea.dispatchEvent(new Event('change'));
-            }
-            if (coreFieldElements[fieldName]?.promptTextarea) {
-              coreFieldElements[fieldName].promptTextarea.value = '';
-              coreFieldElements[fieldName].promptTextarea.dispatchEvent(new Event('change'));
+            const elements = coreFieldElements[fieldName];
+            if (elements) {
+              // Check if elements exist (not null)
+              const fieldData = activeSession.fields[fieldName];
+              if (elements.textarea) {
+                elements.textarea.value = '';
+                if (fieldData) fieldData.value = ''; // Update session
+              }
+              if (elements.promptTextarea) {
+                elements.promptTextarea.value = '';
+                if (fieldData) fieldData.prompt = ''; // Update session
+              }
             }
           });
+
+          // Remove all alternate greeting fields
+          getAlternateGreetingFieldNames().forEach((fieldName) => {
+            delete activeSession.fields[fieldName];
+          });
+
+          // Re-render the alternate greetings UI (will show empty state)
+          const agFieldElement = coreFieldsContainer?.querySelector('.alternate-greetings-field') as HTMLElement | null;
+          if (agFieldElement) {
+            renderAlternateGreetingsUI(agFieldElement);
+          }
 
           activeSession.draftFields = {};
           saveSession();
@@ -1110,6 +1369,11 @@ async function handlePopupUI() {
         }
         const confirm = await globalContext.Popup.show.confirm('Save as New Character', `Are you sure?`);
         if (!confirm) return;
+        // Gather alternate greetings
+        const alternate_greetings = getAlternateGreetingFieldNames()
+          .map((fieldName) => activeSession.fields[fieldName]?.value ?? '')
+          .filter((value) => value.trim() !== ''); // Filter out empty greetings
+
         const data: FullExportData = {
           name: activeSession.fields.name.value,
           description: activeSession.fields.description.value,
@@ -1126,6 +1390,7 @@ async function handlePopupUI() {
             mes_example: activeSession.fields.mes_example.value,
             tags: [],
             avatar: 'none',
+            alternate_greetings, // Assign the gathered array
           },
           avatar: 'none',
           tags: [],
@@ -1156,16 +1421,23 @@ async function handlePopupUI() {
           async onBeforeSelection(_currentValues, proposedValues) {
             if (proposedValues.length === 0) return false;
 
-            const character: Character = {
+            // Gather alternate greetings for the template
+            const alternate_greetings_template = getAlternateGreetingFieldNames()
+              .map((fieldName) => activeSession.fields[fieldName]?.value ?? '')
+              .filter((value) => value.trim() !== '');
+
+            // Construct a partial character object for the template
+            const characterForTemplate = {
               name: activeSession.fields.name.value,
               description: activeSession.fields.description.value,
               first_mes: activeSession.fields.first_mes.value,
               scenario: activeSession.fields.scenario.value,
               personality: activeSession.fields.personality.value,
               mes_example: activeSession.fields.mes_example.value,
-              avatar: 'none',
+              alternate_greetings: alternate_greetings_template,
             };
-            if (!character.name) {
+
+            if (!characterForTemplate.name) {
               st_echo('warning', 'Please enter a name for the character.');
               close();
               return false;
@@ -1176,7 +1448,7 @@ async function handlePopupUI() {
               const template = Handlebars.compile(settings.prompts.charDefinitions.content, {
                 noEscape: true,
               });
-              content = template({ character });
+              content = template({ character: characterForTemplate }); // Pass the constructed object
             } catch (error: any) {
               console.error(`Failed to compile character definition prompt: ${error.message}`);
               st_echo('error', `Failed to compile character definition prompt: ${error.message}`);
@@ -1328,6 +1600,14 @@ async function handlePopupUI() {
               label: CHARACTER_LABELS[field],
             };
           }
+          // Add alternate greetings fields
+          getAlternateGreetingFieldNames().forEach((fieldName) => {
+            typedFields[fieldName as CharacterFieldName] = {
+              prompt: activeSession.fields[fieldName].prompt,
+              value: activeSession.fields[fieldName].value,
+              label: fieldName,
+            };
+          });
 
           sessionForGeneration = {
             ...activeSession,
