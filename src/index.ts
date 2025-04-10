@@ -868,6 +868,7 @@ async function handlePopupUI() {
 
             valueTextarea.value = greetingField.value ?? '';
             promptTextarea.value = greetingField.prompt ?? '';
+            valueTextarea.rows = 8;
 
             // Add change listener for value textarea
             valueTextarea.addEventListener('change', () => {
