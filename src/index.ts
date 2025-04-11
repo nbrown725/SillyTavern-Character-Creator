@@ -972,10 +972,8 @@ async function handlePopupUI() {
           ) as HTMLTextAreaElement | null;
 
           if (activeSession.fields[targetFieldName]) {
-            if (valueTextarea) valueTextarea.value = '';
-            if (promptTextarea) promptTextarea.value = '';
+            valueTextarea!.value = '';
             activeSession.fields[targetFieldName].value = '';
-            activeSession.fields[targetFieldName].prompt = '';
             saveSession();
           }
         });
