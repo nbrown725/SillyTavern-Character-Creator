@@ -1705,7 +1705,7 @@ async function handlePopupUI() {
   });
 }
 
-function stagingCheck(): boolean {
+function importCheck(): boolean {
   if (!globalContext.ConnectionManagerRequestService) return false;
   return true;
 }
@@ -1715,8 +1715,8 @@ function main() {
   handlePopupUI();
 }
 
-if (!stagingCheck()) {
-  st_echo('error', `[${extensionName}] Make sure you are on staging branch and staging is updated.`);
+if (!importCheck()) {
+  st_echo('error', `[${extensionName}] Make sure ST is updated.`);
 } else {
   initializeSettings().then(() => {
     main();

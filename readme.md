@@ -1,7 +1,5 @@
 # SillyTavern Character Creator (CREC)
 
-**To use the extension, you need to be on the `staging` branch of SillyTavern.**
-
 ## Overview
 
 A [SillyTavern](https://docs.sillytavern.app/) extension that helps you create character cards based on your ST data with LLMs using [connection profiles](https://docs.sillytavern.app/usage/core-concepts/connection-profiles/).
