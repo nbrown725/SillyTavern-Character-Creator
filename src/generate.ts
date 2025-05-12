@@ -115,9 +115,6 @@ export async function runCharacterFieldGeneration({
     templateData,
   );
 
-  // Build base prompt (system, memory, messages, persona - if applicable)
-  const chatMessages = await buildPrompt(selectedApi, buildPromptOptions);
-
   // Add Definitions of Selected Characters (if enabled and characters selected)
   {
     const charactersData: Array<Character> = [];
@@ -190,11 +187,7 @@ export async function runCharacterFieldGeneration({
     for (const mainContext of mainContextList) {
       // Chat history is exception, since it is not a template
       if (mainContext.promptName === 'chatHistory') {
-        const chatHistory = chatMessages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        }));
-        messages.push(...chatHistory);
+        messages.push(...(await buildPrompt(selectedApi, buildPromptOptions)));
         continue;
       }
 
