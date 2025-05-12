@@ -760,6 +760,7 @@ async function handlePopupUI() {
         {
           textarea: HTMLTextAreaElement;
           button: HTMLButtonElement;
+          continueButton: HTMLButtonElement;
           promptTextarea?: HTMLTextAreaElement;
           clearButton?: HTMLButtonElement;
         }
@@ -993,6 +994,7 @@ async function handlePopupUI() {
         const label = clone.querySelector('label') as HTMLLabelElement;
         const textarea = clone.querySelector('.field-value-textarea') as HTMLTextAreaElement;
         const button = clone.querySelector('.generate-field-button') as HTMLButtonElement;
+        const continueButton = clone.querySelector('.continue-field-button') as HTMLButtonElement;
         const clearButton = clone.querySelector('.clear-field-button') as HTMLButtonElement;
         const promptTextarea = clone.querySelector('.field-prompt-textarea') as HTMLTextAreaElement;
 
@@ -1030,6 +1032,7 @@ async function handlePopupUI() {
         coreFieldElements[fieldName] = {
           textarea,
           button,
+          continueButton,
           promptTextarea,
           clearButton,
         };
@@ -1057,6 +1060,7 @@ async function handlePopupUI() {
         const promptTextarea = clone.querySelector('.field-prompt-textarea') as HTMLTextAreaElement;
         const deleteButton = clone.querySelector('.delete-draft-field-button') as HTMLButtonElement;
         const generateButton = clone.querySelector('.generate-field-button') as HTMLButtonElement;
+        const continueButton = clone.querySelector('.continue-field-button') as HTMLButtonElement;
         const clearButton = clone.querySelector('.clear-field-button') as HTMLButtonElement;
 
         fieldDiv.dataset.draftFieldName = fieldName;
@@ -1109,12 +1113,28 @@ async function handlePopupUI() {
           }
         });
 
+        // Generate button click handler
         generateButton.addEventListener('click', () => {
           handleFieldGeneration({
             targetField: fieldName,
             button: generateButton,
             textarea,
             isDraft: true,
+          });
+        });
+
+        // Continue button click handler
+        continueButton.addEventListener('click', () => {
+          if (!textarea.value.trim()) {
+            st_echo('warning', 'No content to continue from');
+            return;
+          }
+          handleFieldGeneration({
+            targetField: fieldName,
+            button: continueButton,
+            textarea,
+            isDraft: true,
+            continueFrom: textarea.value,
           });
         });
 
@@ -1487,8 +1507,9 @@ async function handlePopupUI() {
         button: HTMLButtonElement;
         textarea: HTMLTextAreaElement;
         isDraft?: boolean;
+        continueFrom?: string;
       }) {
-        const { targetField, button, textarea, isDraft = false } = options;
+        const { targetField, button, textarea, isDraft = false, continueFrom } = options;
 
         // Disable button and show loading state
         button.disabled = true;
@@ -1641,6 +1662,7 @@ async function handlePopupUI() {
             profileId: settings.profileId,
             userPrompt: userPrompt,
             buildPromptOptions: buildPromptOptions,
+            continueFrom,
             session: sessionForGeneration,
             allCharacters: context.characters,
             entriesGroupByWorldName: entriesGroupByWorldName,
@@ -1672,7 +1694,22 @@ async function handlePopupUI() {
       }
 
       // Setup core field event listeners
-      Object.entries(coreFieldElements).forEach(([fieldName, { textarea, button, promptTextarea }]) => {
+      Object.entries(coreFieldElements).forEach(([fieldName, { textarea, button, continueButton, promptTextarea }]) => {
+        // Continue button click handler
+        if (continueButton) {
+          continueButton.addEventListener('click', () => {
+            if (!textarea.value.trim()) {
+              st_echo('warning', 'No content to continue from');
+              return;
+            }
+            handleFieldGeneration({
+              targetField: fieldName as CharacterFieldName,
+              button: continueButton,
+              textarea,
+              continueFrom: textarea.value,
+            });
+          });
+        }
         if (button) {
           button.addEventListener('click', () => {
             handleFieldGeneration({

@@ -1,6 +1,6 @@
 import { buildPrompt, BuildPromptOptions, ExtensionSettingsManager, Message } from 'sillytavern-utils-lib';
+import { parseResponse, getPrefilled } from './parsers.js';
 import { ExtractedData } from 'sillytavern-utils-lib/types';
-import { parseResponse } from './parsers.js';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 import { name1 } from 'sillytavern-utils-lib/config';
@@ -50,6 +50,7 @@ export interface RunCharacterFieldGenerationParams {
   profileId: string;
   userPrompt: string;
   buildPromptOptions: BuildPromptOptions;
+  continueFrom?: string;
   session: Session;
   allCharacters: Character[];
   entriesGroupByWorldName: Record<string, WIEntry[]>;
@@ -71,6 +72,7 @@ export async function runCharacterFieldGeneration({
   profileId,
   userPrompt,
   buildPromptOptions,
+  continueFrom,
   session,
   allCharacters,
   entriesGroupByWorldName,
@@ -214,6 +216,14 @@ export async function runCharacterFieldGeneration({
         messages.push(message);
       }
     }
+
+    // If we're continuing from previous content, add it as an assistant message
+    if (continueFrom) {
+      messages.push({
+        role: 'assistant',
+        content: getPrefilled(continueFrom, outputFormat),
+      });
+    }
   }
 
   // console.log("Sending messages:", JSON.stringify(messages, null, 2)); // For debugging
@@ -227,7 +237,9 @@ export async function runCharacterFieldGeneration({
   // console.log("Received raw content:", response.content); // For debugging
 
   // Parse the response based on the expected format
-  const parsedContent = parseResponse(response.content, outputFormat);
+  const parsedContent = parseResponse(response.content, outputFormat, {
+    previousContent: continueFrom,
+  });
 
   return parsedContent;
 }

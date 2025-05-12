@@ -5,6 +5,10 @@ const xmlParser = new XMLParser({
   allowBooleanAttributes: true,
 });
 
+interface XmlParseOptions {
+  previousContent?: string;
+}
+
 /**
  * Parses the AI response based on the expected format.
  * @param content The raw response string from the AI.
@@ -12,11 +16,15 @@ const xmlParser = new XMLParser({
  * @returns The extracted content string.
  * @throws Error if parsing fails or the format is invalid.
  */
-export function parseResponse(content: string, format: 'xml' | 'json' | 'none'): string {
+export function parseResponse(content: string, format: 'xml' | 'json' | 'none', options: XmlParseOptions = {}): string {
   // Extract content from inside code blocks, handling language identifiers
   const codeBlockRegex = /```(?:\w+\n|\n)([\s\S]*?)```/; // Use * to match zero or more characters
   const codeBlockMatch = content.match(codeBlockRegex);
-  const cleanedContent = codeBlockMatch ? codeBlockMatch[1].trim() : content.trim();
+  let cleanedContent = codeBlockMatch ? codeBlockMatch[1].trim() : content.trim();
+
+  if (options.previousContent) {
+    cleanedContent = options.previousContent + cleanedContent.trimEnd();
+  }
 
   try {
     switch (format) {
@@ -72,5 +80,25 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none'):
     } else {
       throw new Error(`Failed to parse response as ${format}: ${error.message}`);
     }
+  }
+}
+
+/**
+ * Gets the prefilled incomplete message for continuing generation
+ * @param content The current content to continue from
+ * @param format The expected format ('xml', 'json', 'none')
+ * @returns Prefilled incomplete message in the specified format
+ */
+export function getPrefilled(content: string, format: 'xml' | 'json' | 'none'): string {
+  const trimmedContent = content.trim();
+  switch (format) {
+    case 'xml':
+      return `<response>\n  ${trimmedContent}`;
+    case 'json':
+      return `{\n  "response": "${trimmedContent}`;
+    case 'none':
+      return trimmedContent;
+    default:
+      throw new Error(`Unsupported format specified: ${format}`);
   }
 }
