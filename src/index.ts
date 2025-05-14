@@ -796,8 +796,8 @@ async function handlePopupUI() {
         return Object.keys(activeSession.fields)
           .filter((key) => key.startsWith('alternate_greetings_'))
           .sort((a, b) => {
-            const indexA = parseInt(a.split('_')[2] || '0');
-            const indexB = parseInt(b.split('_')[2] || '0');
+            const indexA = parseInt(a.split('_')[2] || '1');
+            const indexB = parseInt(b.split('_')[2] || '1');
             return indexA - indexB;
           });
       };
@@ -855,7 +855,8 @@ async function handlePopupUI() {
             // Create Tab Button
             const tabButton = document.createElement('button');
             tabButton.className = 'menu_button alternate-greeting-tab-button';
-            tabButton.textContent = `Greeting ${index + 1}`;
+            const displayNumber = parseInt(fieldName.split('_')[2]) || 1;
+            tabButton.textContent = `Greeting ${displayNumber}`;
             tabButton.dataset.index = index.toString();
             tabButton.addEventListener('click', () => switchTab(index));
             tabButtonContainer.appendChild(tabButton);
@@ -906,12 +907,12 @@ async function handlePopupUI() {
 
         // Add Button Listener
         newAddButton.addEventListener('click', () => {
-          const nextIndex = greetingFieldNames.length;
-          const newFieldName = `alternate_greetings_${nextIndex}`;
-          activeSession.fields[newFieldName] = { prompt: '', value: '', label: `Alternate Greeting ${nextIndex + 1}` };
+          const nextNumber = greetingFieldNames.length + 1;
+          const newFieldName = `alternate_greetings_${nextNumber}`;
+          activeSession.fields[newFieldName] = { prompt: '', value: '', label: `Alternate Greeting ${nextNumber}` };
           saveSession();
           renderAlternateGreetingsUI(parentElement); // Re-render
-          switchTab(nextIndex);
+          switchTab(greetingFieldNames.length);
         });
 
         // Delete Button Listener
@@ -928,11 +929,11 @@ async function handlePopupUI() {
             // Re-index subsequent greetings
             const subsequentFieldNames = greetingFieldNames.slice(activeTabIndex + 1);
             subsequentFieldNames.forEach((oldName, i) => {
-              const newIndex = activeTabIndex + i;
-              const newName = `alternate_greetings_${newIndex}`;
+              const newNumber = activeTabIndex + i + 1;
+              const newName = `alternate_greetings_${newNumber}`;
               if (oldName !== newName) {
                 activeSession.fields[newName] = activeSession.fields[oldName];
-                activeSession.fields[newName].label = `Alternate Greeting ${newIndex + 1}`;
+                activeSession.fields[newName].label = `Alternate Greeting ${newNumber}`;
                 delete activeSession.fields[oldName];
               }
             });
@@ -1317,11 +1318,12 @@ async function handlePopupUI() {
             const greetingsData = character.data?.alternate_greetings ?? [];
             if (Array.isArray(greetingsData)) {
               greetingsData.forEach((greeting: string, index: number) => {
-                const fieldName = `alternate_greetings_${index}`;
+                const number = index + 1;
+                const fieldName = `alternate_greetings_${number}`;
                 activeSession.fields[fieldName] = {
                   value: greeting,
                   prompt: '', // Initialize prompt as empty
-                  label: `Alternate Greeting ${index + 1}`,
+                  label: `Alternate Greeting ${number}`,
                 };
               });
             }
