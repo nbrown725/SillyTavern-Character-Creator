@@ -1235,6 +1235,8 @@ async function handlePopupUI() {
         });
       }
 
+      let loadCharDropdown: ReturnType<typeof buildFancyDropdown> | null = null;
+
       // --- Button Actions ---
       // Setup Load Character Dropdown
       const loadCharSelectorContainer = popupContainer.querySelector('#charCreator_loadCharSelector');
@@ -1244,7 +1246,7 @@ async function handlePopupUI() {
           label: char.name,
         }));
 
-        buildFancyDropdown('#charCreator_loadCharSelector', {
+        loadCharDropdown = buildFancyDropdown('#charCreator_loadCharSelector', {
           initialList: characterItems,
           initialValues: [],
           placeholderText: 'Load Character Data...',
@@ -1371,6 +1373,9 @@ async function handlePopupUI() {
           if (agFieldElement) {
             renderAlternateGreetingsUI(agFieldElement);
           }
+
+          // Reset load character selector
+          loadCharDropdown!.deselectAll();
 
           activeSession.draftFields = {};
           saveSession();
