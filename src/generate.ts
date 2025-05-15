@@ -3,7 +3,7 @@ import { parseResponse, getPrefilled } from './parsers.js';
 import { ExtractedData } from 'sillytavern-utils-lib/types';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
-import { name1 } from 'sillytavern-utils-lib/config';
+import { name1, st_echo } from 'sillytavern-utils-lib/config';
 import { ExtensionSettings, MessageRole, OutputFormat } from './settings.js';
 
 import * as Handlebars from 'handlebars';
@@ -189,7 +189,13 @@ export async function runCharacterFieldGeneration({
     for (const mainContext of mainContextList) {
       // Chat history is exception, since it is not a template
       if (mainContext.promptName === 'chatHistory') {
-        messages.push(...(await buildPrompt(selectedApi, buildPromptOptions)));
+        const prompt = await buildPrompt(selectedApi, buildPromptOptions);
+        if (prompt.warnings && prompt.warnings.length > 0) {
+          for (const warning of prompt.warnings) {
+            st_echo('warning', warning);
+          }
+        }
+        messages.push(...prompt.result);
         continue;
       }
 

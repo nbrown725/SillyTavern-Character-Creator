@@ -1489,6 +1489,7 @@ async function handlePopupUI() {
               content,
               comment: activeSession.fields.name.value,
               disable: false,
+              keysecondary: [],
             };
             try {
               await applyWorldInfoEntry({
