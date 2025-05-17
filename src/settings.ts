@@ -16,7 +16,7 @@ import {
 import { globalContext } from './generate.js';
 
 export const extensionName = 'SillyTavern-Character-Creator';
-export const VERSION = '0.2.0';
+export const VERSION = '0.2.1';
 export const FORMAT_VERSION = 'F_1.6';
 
 export const KEYS = {

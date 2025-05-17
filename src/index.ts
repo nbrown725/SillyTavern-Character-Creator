@@ -8,6 +8,7 @@ import {
   DropdownItem,
   SortableListItemData,
 } from 'sillytavern-utils-lib';
+import { diffWords } from 'diff';
 import { selected_group, st_echo, this_chid, world_names } from 'sillytavern-utils-lib/config';
 import { POPUP_TYPE } from 'sillytavern-utils-lib/types/popup';
 
@@ -1701,8 +1702,108 @@ async function handlePopupUI() {
         }
       }
 
+      // Function to handle field comparison
+      const handleFieldComparison = async (fieldName: string, currentValue: string) => {
+        // Find loaded character content
+        const selectedId = loadCharDropdown?.getValues()?.[0];
+        if (!selectedId) {
+          st_echo('warning', 'Please select a character first');
+          return;
+        }
+
+        const character = context.characters[parseInt(selectedId)];
+        if (!character) {
+          st_echo('warning', 'Selected character not found');
+          return;
+        }
+
+        // @ts-ignore - Accessing character fields directly
+        const characterValue = character[fieldName] ?? character.data?.[fieldName] ?? '';
+
+        const mainDiv = document.createElement('div');
+        mainDiv.classList.add('compare-popup');
+
+        const compareTitle = document.createElement('h3');
+        compareTitle.textContent = `Compare ${CHARACTER_LABELS[fieldName as CharacterFieldName]}`;
+        mainDiv.appendChild(compareTitle);
+
+        const compareContainer = document.createElement('div');
+        compareContainer.style.display = 'flex';
+        compareContainer.style.gap = '1rem';
+        compareContainer.style.marginTop = '1rem';
+
+        // Create containers for original and new content
+        const originalContent = document.createElement('div');
+        originalContent.style.flex = '1';
+        const newContent = document.createElement('div');
+        newContent.style.flex = '1';
+
+        const originalTitle = document.createElement('h4');
+        originalTitle.textContent = 'Character Content';
+        const newTitle = document.createElement('h4');
+        newTitle.textContent = 'Current Content';
+
+        originalContent.appendChild(originalTitle);
+        newContent.appendChild(newTitle);
+
+        // Show word-level diff
+        const diff = diffWords(characterValue, currentValue);
+        let originalHtml = '';
+        let newHtml = '';
+
+        diff.forEach((part) => {
+          const color = part.added ? 'green' : part.removed ? 'red' : 'grey';
+          const spanStyle = `color: ${color}; ${part.added || part.removed ? 'background-color: rgba(0,0,0,0.1);' : ''}`;
+
+          if (!part.added) {
+            originalHtml += `<span style="${spanStyle}">${part.value}</span>`;
+          }
+          if (!part.removed) {
+            newHtml += `<span style="${spanStyle}">${part.value}</span>`;
+          }
+        });
+
+        const originalContentText = document.createElement('div');
+        originalContentText.classList.add('content');
+        originalContentText.innerHTML = originalHtml;
+        originalContentText.style.whiteSpace = 'pre-wrap';
+        originalContentText.style.fontFamily = 'monospace';
+        originalContentText.style.padding = '1rem';
+        originalContentText.style.border = '1px solid #ccc';
+
+        const newContentText = document.createElement('div');
+        newContentText.classList.add('content');
+        newContentText.innerHTML = newHtml;
+        newContentText.style.whiteSpace = 'pre-wrap';
+        newContentText.style.fontFamily = 'monospace';
+        newContentText.style.padding = '1rem';
+        newContentText.style.border = '1px solid #ccc';
+
+        originalContent.appendChild(originalContentText);
+        newContent.appendChild(newContentText);
+
+        compareContainer.appendChild(originalContent);
+        compareContainer.appendChild(newContent);
+        mainDiv.appendChild(compareContainer);
+
+        await globalContext.callGenericPopup(mainDiv, POPUP_TYPE.DISPLAY, undefined, {
+          wide: true,
+        });
+      };
+
       // Setup core field event listeners
       Object.entries(coreFieldElements).forEach(([fieldName, { textarea, button, continueButton, promptTextarea }]) => {
+        const compareButton = textarea
+          .closest('.field-container')
+          ?.querySelector('.compare-field-button') as HTMLButtonElement;
+
+        // Compare button click handler
+        if (compareButton) {
+          compareButton.addEventListener('click', () => {
+            handleFieldComparison(fieldName, textarea.value);
+          });
+        }
+
         // Continue button click handler
         if (continueButton) {
           continueButton.addEventListener('click', () => {

@@ -30,6 +30,7 @@
   /* Utility: Disable interaction */
   /* Tab Styles */
   /* Utility styles */
+  /* Compare popup styles */
 }
 #charCreatorPopup h2 {
   text-align: center;
@@ -325,4 +326,38 @@
 #charCreatorPopup .subtle {
   font-size: 0.9em;
   margin-bottom: 15px;
+}
+#charCreatorPopup .compare-popup {
+  color: var(--SmartThemeBodyColor);
+  font-family: var(--mainFontFamily);
+  padding: 15px;
+}
+#charCreatorPopup .compare-popup h3 {
+  margin-bottom: 15px;
+  font-weight: 500;
+  color: var(--SmartThemeBodyColor);
+}
+#charCreatorPopup .compare-popup h4 {
+  margin-bottom: 10px;
+  color: var(--SmartThemeBodyColor);
+}
+#charCreatorPopup .compare-popup .content {
+  font-family: monospace;
+  white-space: pre-wrap;
+  padding: 15px;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  background-color: var(--SmartThemeBlurTintColor);
+  margin-bottom: 10px;
+}
+#charCreatorPopup .compare-popup .content span[style*="color: green"] {
+  color: var(--success) !important;
+  background-color: color-mix(in srgb, var(--success) 15%, transparent) !important;
+}
+#charCreatorPopup .compare-popup .content span[style*="color: red"] {
+  color: var(--warning) !important;
+  background-color: color-mix(in srgb, var(--warning) 15%, transparent) !important;
+}
+#charCreatorPopup .compare-popup .content span[style*="color: grey"] {
+  color: var(--SmartThemeBodyColor) !important;
 }
