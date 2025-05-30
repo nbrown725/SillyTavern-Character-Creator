@@ -38,6 +38,7 @@ export interface ContextToSend {
   existingFields: boolean;
   worldInfo: boolean;
   persona: boolean;
+  dontSendOtherGreetings: boolean;
 }
 
 export interface PromptSetting {
@@ -168,6 +169,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     existingFields: true,
     worldInfo: true,
     persona: true,
+    dontSendOtherGreetings: false,
   },
 
   // Updated prompts structure

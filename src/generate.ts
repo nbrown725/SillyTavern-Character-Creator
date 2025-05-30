@@ -4,7 +4,7 @@ import { ExtractedData } from 'sillytavern-utils-lib/types';
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 import { name1, st_echo } from 'sillytavern-utils-lib/config';
-import { ExtensionSettings, MessageRole, OutputFormat } from './settings.js';
+import { ExtensionSettings, MessageRole, OutputFormat, settingsManager } from './settings.js';
 
 import * as Handlebars from 'handlebars';
 
@@ -156,18 +156,28 @@ export async function runCharacterFieldGeneration({
     const draftFields: Record<string, string> = {};
 
     Object.entries(session.fields).forEach(([fieldName, field]) => {
-      const compiledValue = Handlebars.compile(field.value, { noEscape: true })({
-        ...templateData,
+      // Skip other alternate greetings if the setting is enabled and this is not the current greeting
+      const isAlternateGreeting = fieldName.startsWith('alternate_greetings_');
+      const shouldSkip =
+        isAlternateGreeting &&
+        targetField !== fieldName &&
+        targetField.startsWith('alternate_greetings_') &&
+        settingsManager.getSettings().contextToSend.dontSendOtherGreetings;
 
-        char: fieldName === 'mes_example' ? '{{char}}' : templateData.char,
-        user: fieldName === 'mes_example' ? '{{user}}' : templateData.user,
-      });
+      if (!shouldSkip) {
+        const compiledValue = Handlebars.compile(field.value, { noEscape: true })({
+          ...templateData,
 
-      if (CHARACTER_FIELDS.includes(fieldName as CharacterFieldName)) {
-        coreFields[field.label] = compiledValue;
-      } else if (fieldName.startsWith('alternate_greetings_')) {
-        const index = parseInt(fieldName.split('_')[2]);
-        alternateGreetingsFields[fieldName] = compiledValue;
+          char: fieldName === 'mes_example' ? '{{char}}' : templateData.char,
+          user: fieldName === 'mes_example' ? '{{user}}' : templateData.user,
+        });
+
+        if (CHARACTER_FIELDS.includes(fieldName as CharacterFieldName)) {
+          coreFields[field.label] = compiledValue;
+        } else if (fieldName.startsWith('alternate_greetings_')) {
+          const index = parseInt(fieldName.split('_')[2]);
+          alternateGreetingsFields[fieldName] = compiledValue;
+        }
       }
     });
 

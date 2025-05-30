@@ -489,6 +489,11 @@ async function handlePopupUI() {
       includeExistingFieldsCheckbox.checked = settings.contextToSend.existingFields;
       includeWorldInfoCheckbox.checked = settings.contextToSend.worldInfo;
 
+      const dontSendOtherGreetingsCheckbox = popupContainer.querySelector(
+        '#charCreator_dontSendOtherGreetings',
+      ) as HTMLInputElement;
+      dontSendOtherGreetingsCheckbox.checked = settings.contextToSend.dontSendOtherGreetings;
+
       includeCharsContainer.style.display = includeCharsCheckbox.checked ? 'block' : 'none';
       includeWorldInfoContainer.style.display = includeWorldInfoCheckbox.checked ? 'block' : 'none';
 
@@ -512,6 +517,11 @@ async function handlePopupUI() {
       });
       includeExistingFieldsCheckbox.addEventListener('change', () => {
         settings.contextToSend.existingFields = includeExistingFieldsCheckbox.checked;
+        settingsManager.saveSettings();
+      });
+
+      dontSendOtherGreetingsCheckbox.addEventListener('change', () => {
+        settings.contextToSend.dontSendOtherGreetings = dontSendOtherGreetingsCheckbox.checked;
         settingsManager.saveSettings();
       });
 
