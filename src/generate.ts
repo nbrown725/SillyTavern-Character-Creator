@@ -155,14 +155,24 @@ export async function runCharacterFieldGeneration({
     const alternateGreetingsFields: Record<string, string> = {};
     const draftFields: Record<string, string> = {};
 
+    const isTargetAlternateGreeting = targetField.startsWith('alternate_greetings_');
+    const dontSendOtherGreetings = settingsManager.getSettings().contextToSend.dontSendOtherGreetings;
+
     Object.entries(session.fields).forEach(([fieldName, field]) => {
-      // Skip other alternate greetings if the setting is enabled and this is not the current greeting
-      const isAlternateGreeting = fieldName.startsWith('alternate_greetings_');
-      const shouldSkip =
-        isAlternateGreeting &&
-        targetField !== fieldName &&
-        targetField.startsWith('alternate_greetings_') &&
-        settingsManager.getSettings().contextToSend.dontSendOtherGreetings;
+      // There are 2 case.
+      // 1. If the target is non-alternate greeting, we send all fields except alternate greetings.
+      // 2. If the target is alternate greeting, we send only the target field and skip all other alternate greetings. We also skip the first message field in this case.
+      let shouldSkip = false;
+      if (dontSendOtherGreetings) {
+        const isAlternateGreeting = fieldName.startsWith('alternate_greetings_');
+        if (isTargetAlternateGreeting) {
+          // If the target is an alternate greeting, skip all other alternate greetings and first message
+          shouldSkip = (isAlternateGreeting && fieldName !== targetField) || fieldName === 'first_mes';
+        } else {
+          // If the target is not an alternate greeting, skip all alternate greetings and first message
+          shouldSkip = isAlternateGreeting;
+        }
+      }
 
       if (!shouldSkip) {
         const compiledValue = Handlebars.compile(field.value, { noEscape: true })({
