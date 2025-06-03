@@ -5,6 +5,7 @@ import {
   BuildPromptOptions,
   buildSortableList,
   createCharacter,
+  saveCharacter,
   DropdownItem,
   SortableListItemData,
 } from 'sillytavern-utils-lib';
@@ -1438,6 +1439,67 @@ async function handlePopupUI() {
           await createCharacter(data, true);
         } catch (error: any) {
           st_echo('error', `Failed to create character: ${error.message}`);
+        }
+      });
+
+      const overrideCharacterButton = popupContainer.querySelector(
+        '#charCreator_overrideCharacter',
+      ) as HTMLButtonElement;
+      overrideCharacterButton.addEventListener('click', async () => {
+        const selectedId = loadCharDropdown?.getValues()?.[0];
+        if (!selectedId) {
+          st_echo('warning', 'Please load a character first to override.');
+          return;
+        }
+
+        const characterToOverride = context.characters[parseInt(selectedId)];
+        if (!characterToOverride) {
+          st_echo('warning', 'Selected character not found for override.');
+          return;
+        }
+
+        if (!activeSession.fields.name.value) {
+          st_echo('warning', 'Please enter a name for the character.');
+          return;
+        }
+
+        const confirm = await globalContext.Popup.show.confirm(
+          'Override Character',
+          `Are you sure you want to override "${characterToOverride.name}"? This cannot be undone.`,
+        );
+        if (!confirm) return;
+
+        // Gather alternate greetings
+        const alternate_greetings = getAlternateGreetingFieldNames()
+          .map((fieldName) => activeSession.fields[fieldName]?.value ?? '')
+          .filter((value) => value.trim() !== ''); // Filter out empty greetings
+
+        // Construct the Character object for saving
+        const data: Character = {
+          ...characterToOverride, // Keep existing properties
+          name: activeSession.fields.name.value,
+          description: activeSession.fields.description.value,
+          personality: activeSession.fields.personality.value,
+          scenario: activeSession.fields.scenario.value,
+          first_mes: activeSession.fields.first_mes.value,
+          mes_example: activeSession.fields.mes_example.value,
+          data: {
+            ...characterToOverride.data, // Keep existing data properties
+            name: activeSession.fields.name.value,
+            description: activeSession.fields.description.value,
+            personality: activeSession.fields.personality.value,
+            scenario: activeSession.fields.scenario.value,
+            first_mes: activeSession.fields.first_mes.value,
+            mes_example: activeSession.fields.mes_example.value,
+            alternate_greetings, // Assign the gathered array
+          },
+        };
+
+        try {
+          await saveCharacter(data, true);
+          st_echo('success', `Character "${data.name}" overridden successfully!`);
+        } catch (error: any) {
+          st_echo('error', `Failed to override character: ${error.message}`);
         }
       });
 
