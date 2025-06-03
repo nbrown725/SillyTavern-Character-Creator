@@ -832,6 +832,9 @@ async function handlePopupUI() {
         const continueButton = sideButtonContainer?.querySelector(
           '.continue-alternate-greeting-button',
         ) as HTMLButtonElement;
+        const compareButton = sideButtonContainer?.querySelector(
+          '.compare-alternate-greeting-button',
+        ) as HTMLButtonElement;
         const clearButton = sideButtonContainer?.querySelector('.clear-alternate-greeting-button') as HTMLButtonElement;
 
         tabButtonContainer.innerHTML = '';
@@ -850,6 +853,7 @@ async function handlePopupUI() {
           const hasGreetings = greetingFieldNames.length > 0;
           generateButton.disabled = !hasGreetings;
           continueButton.disabled = !hasGreetings;
+          compareButton.disabled = !hasGreetings;
           clearButton.disabled = !hasGreetings;
           deleteButton.disabled = !hasGreetings; // Enable/disable delete button
         };
@@ -920,6 +924,8 @@ async function handlePopupUI() {
         generateButton.parentNode?.replaceChild(newGenerateButton, generateButton);
         const newContinueButton = continueButton.cloneNode(true) as HTMLButtonElement;
         continueButton.parentNode?.replaceChild(newContinueButton, continueButton);
+        const newCompareButton = compareButton.cloneNode(true) as HTMLButtonElement;
+        compareButton.parentNode?.replaceChild(newCompareButton, compareButton);
         const newClearButton = clearButton.cloneNode(true) as HTMLButtonElement;
         clearButton.parentNode?.replaceChild(newClearButton, clearButton);
 
@@ -1000,6 +1006,37 @@ async function handlePopupUI() {
             isDraft: false,
             continueFrom: textarea.value,
           });
+        });
+
+        // Compare Button Listener
+        newCompareButton.addEventListener('click', () => {
+          if (activeTabIndex < 0 || activeTabIndex >= greetingFieldNames.length) return;
+          const targetFieldName = greetingFieldNames[activeTabIndex];
+          const contentDiv = contentArea.querySelectorAll('.alternate-greeting-tab-content')[activeTabIndex];
+          const textarea = contentDiv?.querySelector('.alternate-greeting-textarea') as HTMLTextAreaElement | null;
+
+          if (!textarea?.value.trim()) {
+            st_echo('warning', 'No content to compare');
+            return;
+          }
+
+          // Find loaded character content for the current alternate greeting
+          const selectedId = loadCharDropdown?.getValues()?.[0];
+          if (!selectedId) {
+            st_echo('warning', 'Please select a character first to compare against.');
+            return;
+          }
+
+          const character = context.characters[parseInt(selectedId)];
+          if (!character) {
+            st_echo('warning', 'Selected character not found.');
+            return;
+          }
+
+          const characterGreetings = character.data?.alternate_greetings ?? [];
+          const characterValue = characterGreetings[activeTabIndex] ?? '';
+
+          handleFieldComparison(targetFieldName, textarea.value, characterValue);
         });
 
         // Clear Button Listener
@@ -1802,28 +1839,12 @@ async function handlePopupUI() {
       }
 
       // Function to handle field comparison
-      const handleFieldComparison = async (fieldName: string, currentValue: string) => {
-        // Find loaded character content
-        const selectedId = loadCharDropdown?.getValues()?.[0];
-        if (!selectedId) {
-          st_echo('warning', 'Please select a character first');
-          return;
-        }
-
-        const character = context.characters[parseInt(selectedId)];
-        if (!character) {
-          st_echo('warning', 'Selected character not found');
-          return;
-        }
-
-        // @ts-ignore - Accessing character fields directly
-        const characterValue = character[fieldName] ?? character.data?.[fieldName] ?? '';
-
+      const handleFieldComparison = async (fieldName: string, currentValue: string, characterValue: string) => {
         const mainDiv = document.createElement('div');
         mainDiv.classList.add('compare-popup');
 
         const compareTitle = document.createElement('h3');
-        compareTitle.textContent = `Compare ${CHARACTER_LABELS[fieldName as CharacterFieldName]}`;
+        compareTitle.textContent = `Compare ${CHARACTER_LABELS[fieldName as CharacterFieldName] || fieldName}`;
         mainDiv.appendChild(compareTitle);
 
         const compareContainer = document.createElement('div');
@@ -1899,7 +1920,15 @@ async function handlePopupUI() {
         // Compare button click handler
         if (compareButton) {
           compareButton.addEventListener('click', () => {
-            handleFieldComparison(fieldName, textarea.value);
+            handleFieldComparison(
+              fieldName,
+              textarea.value,
+              // @ts-ignore - Accessing character fields directly
+              context.characters[parseInt(loadCharDropdown?.getValues()?.[0])]?.[fieldName] ??
+                // @ts-ignore - Accessing character fields directly
+                context.characters[parseInt(loadCharDropdown?.getValues()?.[0])]?.data?.[fieldName] ??
+                '',
+            );
           });
         }
 
