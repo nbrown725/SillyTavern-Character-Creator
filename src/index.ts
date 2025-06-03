@@ -829,6 +829,9 @@ async function handlePopupUI() {
         const generateButton = sideButtonContainer?.querySelector(
           '.generate-alternate-greeting-button',
         ) as HTMLButtonElement;
+        const continueButton = sideButtonContainer?.querySelector(
+          '.continue-alternate-greeting-button',
+        ) as HTMLButtonElement;
         const clearButton = sideButtonContainer?.querySelector('.clear-alternate-greeting-button') as HTMLButtonElement;
 
         tabButtonContainer.innerHTML = '';
@@ -846,6 +849,7 @@ async function handlePopupUI() {
           });
           const hasGreetings = greetingFieldNames.length > 0;
           generateButton.disabled = !hasGreetings;
+          continueButton.disabled = !hasGreetings;
           clearButton.disabled = !hasGreetings;
           deleteButton.disabled = !hasGreetings; // Enable/disable delete button
         };
@@ -914,6 +918,8 @@ async function handlePopupUI() {
         deleteButton.parentNode?.replaceChild(newDeleteButton, deleteButton);
         const newGenerateButton = generateButton.cloneNode(true) as HTMLButtonElement;
         generateButton.parentNode?.replaceChild(newGenerateButton, generateButton);
+        const newContinueButton = continueButton.cloneNode(true) as HTMLButtonElement;
+        continueButton.parentNode?.replaceChild(newContinueButton, continueButton);
         const newClearButton = clearButton.cloneNode(true) as HTMLButtonElement;
         clearButton.parentNode?.replaceChild(newClearButton, clearButton);
 
@@ -972,6 +978,27 @@ async function handlePopupUI() {
             button: newGenerateButton,
             textarea: textarea!,
             isDraft: false,
+          });
+        });
+
+        // Continue Button Listener
+        newContinueButton.addEventListener('click', () => {
+          if (activeTabIndex < 0 || activeTabIndex >= greetingFieldNames.length) return;
+          const targetFieldName = greetingFieldNames[activeTabIndex];
+          const contentDiv = contentArea.querySelectorAll('.alternate-greeting-tab-content')[activeTabIndex];
+          const textarea = contentDiv?.querySelector('.alternate-greeting-textarea') as HTMLTextAreaElement | null;
+
+          if (!textarea?.value.trim()) {
+            st_echo('warning', 'No content to continue from');
+            return;
+          }
+
+          handleFieldGeneration({
+            targetField: targetFieldName,
+            button: newContinueButton,
+            textarea: textarea!,
+            isDraft: false,
+            continueFrom: textarea.value,
           });
         });
 
