@@ -59,7 +59,7 @@ Sets the stage for the interaction, providing **contextual boundaries** for the 
 
 ---
 
-### **5. First Message**
+### **5. First Message - Alternate Greetings**
 **Purpose**:
 The character's **opening line**, critical for establishing tone, voice, and narrative momentum.
 **Key Elements**:
@@ -92,18 +92,7 @@ Teaches the AI the character's **speech patterns**, **formatting preferences**, 
 
 ---
 
-### **7. Alternate Greetings**
-**Purpose**:
-Provides alternative opening messages for the character, allowing for variety or context-specific starts. Similar in function and structure to the **First Message** field.
-**Tips**:
-- Keep greetings consistent with the character's personality.
-- Use placeholders like \`{{user}}\` if needed.
-**Example**:
-\`*{{char}} offers a hesitant smile.* "Welcome... I wasn't expecting visitors."\`
-
----
-
-### **8. Advanced Tips**
+### **7. Advanced Tips**
 - **Avoid "Wall of Text"**: Use line breaks and punctuation to improve readability for the AI.
 
 =======`;

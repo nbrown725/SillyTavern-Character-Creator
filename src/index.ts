@@ -634,6 +634,9 @@ async function handlePopupUI() {
       if (!activeSession.draftFields) {
         activeSession.draftFields = {};
       }
+      if (!activeSession.lastLoadedCharacterId) {
+        activeSession.lastLoadedCharacterId = '';
+      }
       CHARACTER_FIELDS.forEach((field) => {
         if (!activeSession.fields[field]) {
           activeSession.fields[field] = {
@@ -1323,9 +1326,15 @@ async function handlePopupUI() {
           label: char.name,
         }));
 
+        // Find the character index that matches the stored avatar
+        const initialCharacterIndex = activeSession.lastLoadedCharacterId
+          ? context.characters.findIndex((char: Character) => char.avatar === activeSession.lastLoadedCharacterId)
+          : -1;
+        const initialValues = initialCharacterIndex >= 0 ? [initialCharacterIndex.toString()] : [];
+
         loadCharDropdown = buildFancyDropdown('#charCreator_loadCharSelector', {
           initialList: characterItems,
-          initialValues: [],
+          initialValues: initialValues,
           placeholderText: 'Load Character Data...',
           enableSearch: characterItems.length > 10,
           multiple: false,
@@ -1412,6 +1421,8 @@ async function handlePopupUI() {
               renderAlternateGreetingsUI(agFieldElement);
             }
 
+            // Store the selected character's avatar in session
+            activeSession.lastLoadedCharacterId = character.avatar;
             saveSession(); // Save session after loading all fields
           },
         });

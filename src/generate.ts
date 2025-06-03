@@ -41,6 +41,7 @@ export interface Session {
   selectedWorldNames: string[];
   fields: Record<string, CharacterField>;
   draftFields: Record<string, CharacterField>;
+  lastLoadedCharacterId: string;
 }
 
 // @ts-ignore
