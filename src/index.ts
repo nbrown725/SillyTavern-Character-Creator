@@ -674,7 +674,9 @@ async function handlePopupUI() {
             saveSession();
           },
         });
-        const includeCharsClearButton = popupContainer.querySelector('#charCreator_clear-includeChars-button') as HTMLInputElement;
+        const includeCharsClearButton = popupContainer.querySelector(
+          '#charCreator_clear-includeChars-button',
+        ) as HTMLInputElement;
         includeCharsClearButton.addEventListener('click', () => {
           characterSelector.deselectAll();
         });
