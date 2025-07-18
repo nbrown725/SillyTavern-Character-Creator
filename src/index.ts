@@ -435,9 +435,12 @@ async function handleSettingsUI() {
 async function handlePopupUI() {
   const iconHtml = `<div class="menu_button fa-solid fa-user-astronaut interactable charCreator-icon" title="Character Creator"></div>`;
 
+  const buttonsContainer = document.getElementById('rm_buttons_container') ?? document.getElementById('form_character_search_form');
+  if (buttonsContainer) {
+    $(buttonsContainer).prepend(iconHtml);
+  }
   $('.form_create_bottom_buttons_block').prepend(iconHtml);
   $('#GroupFavDelOkBack').prepend(iconHtml); // Add to group management too if needed
-  $('#form_character_search_form').prepend(iconHtml);
 
   const popupIcons = document.querySelectorAll('.charCreator-icon');
 
