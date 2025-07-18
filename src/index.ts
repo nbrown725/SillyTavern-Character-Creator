@@ -437,7 +437,7 @@ async function handlePopupUI() {
 
   const buttonsContainer = document.getElementById('rm_buttons_container') ?? document.getElementById('form_character_search_form');
   if (buttonsContainer) {
-    $(buttonsContainer).append(iconHtml);
+    $(buttonsContainer).prepend(iconHtml);
   }
   $('.form_create_bottom_buttons_block').prepend(iconHtml);
   $('#GroupFavDelOkBack').prepend(iconHtml); // Add to group management too if needed
