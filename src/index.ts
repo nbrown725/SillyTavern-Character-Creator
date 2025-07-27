@@ -40,6 +40,7 @@ import {
 } from './settings.js';
 import { Character, FullExportData } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
+import { initializeChat, loadChatUI } from './chat.js';
 
 import * as Handlebars from 'handlebars';
 
@@ -802,6 +803,14 @@ async function handlePopupUI() {
         addDraftFieldButton.style.display = isDraft ? 'block' : 'none';
         exportDraftFieldsButton.style.display = isDraft ? 'block' : 'none';
         importDraftFieldsButton.style.display = isDraft ? 'block' : 'none';
+        
+        // Load chat UI when chat tab is clicked
+        if (targetTabId === 'charCreator_chatContainer') {
+          const chatContainer = document.querySelector('#charCreator_chatContainer');
+          if (chatContainer && !chatContainer.querySelector('#chat_container')) {
+            loadChatUI();
+          }
+        }
       };
 
       tabButtons.forEach((button) => {
@@ -2007,6 +2016,7 @@ function importCheck(): boolean {
 function main() {
   handleSettingsUI();
   handlePopupUI();
+  initializeChat();
 }
 
 if (!importCheck()) {

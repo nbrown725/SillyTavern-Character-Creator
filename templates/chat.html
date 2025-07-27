@@ -1,0 +1,35 @@
+<div id="chat_container" style="display:none;">
+    <div class="chat-header">
+        <h3>Character Brainstorming Chat</h3>
+        <div class="chat-actions">
+            <button id="clear_chat" class="menu_button" title="Clear chat history">
+                <i class="fa-solid fa-trash"></i> Clear
+            </button>
+            <button id="export_chat" class="menu_button" title="Export chat history">
+                <i class="fa-solid fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+    
+    <div id="chat_messages" class="chat-messages">
+        <!-- Messages will be dynamically added here -->
+    </div>
+    
+    <div class="chat-input-container">
+        <textarea id="chat_input" class="chat-input" placeholder="Type your message here..." rows="3"></textarea>
+        <button id="send_message" class="menu_button" title="Send message">
+            <i class="fa-solid fa-paper-plane"></i> Send
+        </button>
+    </div>
+</div>
+
+<!-- Template for chat messages -->
+<template id="chat_message_template">
+    <div class="chat-message">
+        <div class="message-header">
+            <span class="message-role"></span>
+            <span class="message-timestamp"></span>
+        </div>
+        <div class="message-content"></div>
+    </div>
+</template>
