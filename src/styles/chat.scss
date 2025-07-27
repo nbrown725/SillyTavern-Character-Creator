@@ -88,16 +88,6 @@
         min-height: 50px;
         max-height: 150px;
         resize: vertical;
-        padding: 8px;
-        border-radius: 4px;
-        border: 1px solid var(--SmartThemeBorderColor);
-        background-color: var(--SmartThemeBodyColor);
-        color: var(--SmartThemeTextColor);
-        
-        &:focus {
-            outline: none;
-            border-color: var(--SmartThemeQuoteColor);
-        }
         
         &:disabled {
             opacity: 0.6;
