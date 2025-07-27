@@ -30,7 +30,7 @@ export async function loadChatUI(): Promise<void> {
     
     try {
         const chatHtml = await globalContext.renderExtensionTemplateAsync(
-            'third-party/Character-Creator',
+            'third-party/SillyTavern-Character-Creator',
             'templates/chat'
         );
         

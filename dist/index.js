@@ -51,7 +51,7 @@ function _loadChatUI() {
           chatContainerElement = $('#charCreator_chatContainer');
           _context.prev = 1;
           _context.next = 4;
-          return generate_js_1.globalContext.renderExtensionTemplateAsync('third-party/Character-Creator', 'templates/chat');
+          return generate_js_1.globalContext.renderExtensionTemplateAsync('third-party/SillyTavern-Character-Creator', 'templates/chat');
         case 4:
           chatHtml = _context.sent;
           chatContainerElement.html(chatHtml);
