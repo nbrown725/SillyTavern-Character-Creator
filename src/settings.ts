@@ -251,6 +251,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         },
         {
           enabled: true,
+          promptName: 'creatorChatHistory',
+          role: 'system',
+        },
+        {
+          enabled: true,
           promptName: 'stDescription',
           role: 'system',
         },
@@ -423,6 +428,11 @@ export async function initializeSettings(): Promise<void> {
                       },
                       {
                         enabled: true,
+                        promptName: 'creatorChatHistory',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
                         promptName: 'stDescription',
                         role: 'system',
                       },
@@ -496,6 +506,11 @@ export async function initializeSettings(): Promise<void> {
                       {
                         enabled: true,
                         promptName: 'chatHistory',
+                        role: 'system',
+                      },
+                      {
+                        enabled: true,
+                        promptName: 'creatorChatHistory',
                         role: 'system',
                       },
                       {

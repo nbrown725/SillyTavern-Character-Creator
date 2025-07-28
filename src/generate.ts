@@ -36,12 +36,22 @@ export interface CharacterField {
   label: string;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface creatorChatHistory {
+  messages: ChatMessage[];
+}
+
 export interface Session {
   selectedCharacterIndexes: string[];
   selectedWorldNames: string[];
   fields: Record<string, CharacterField>;
   draftFields: Record<string, CharacterField>;
   lastLoadedCharacterId: string;
+  creatorChatHistory: creatorChatHistory;
 }
 
 // @ts-ignore
@@ -106,15 +116,18 @@ export async function runCharacterFieldGeneration({
 
   templateData['targetField'] = targetField;
   templateData['userInstructions'] = Handlebars.compile(userPrompt.trim(), { noEscape: true })(templateData);
+  
+  // Get field-specific instructions, default to empty string if not found
+  const fieldPrompt = session.draftFields[targetField]?.prompt ?? session.fields[targetField as CharacterFieldName]?.prompt ?? '';
   templateData['fieldSpecificInstructions'] = Handlebars.compile(
-    session.draftFields[targetField]?.prompt ?? session.fields[targetField as CharacterFieldName]?.prompt,
+    fieldPrompt,
     { noEscape: true },
   )({
     ...templateData,
     char: targetField === 'mes_example' ? '{{char}}' : templateData.char,
     user: targetField === 'mes_example' ? '{{user}}' : templateData.user,
   });
-  templateData['activeFormatInstructions'] = Handlebars.compile(formatDescription.content, { noEscape: true })(
+  templateData['activeFormatInstructions'] = Handlebars.compile(formatDescription.content || '', { noEscape: true })(
     templateData,
   );
 
@@ -130,6 +143,18 @@ export async function runCharacterFieldGeneration({
     });
 
     templateData['characters'] = charactersData;
+  }
+
+  {
+    // Ensure creatorChatHistory exists and is properly structured for template data
+    if (!session.creatorChatHistory) {
+      session.creatorChatHistory = { messages: [] };
+    }
+    if (!Array.isArray(session.creatorChatHistory.messages)) {
+      session.creatorChatHistory.messages = [];
+    }
+    
+    templateData['creatorChatHistory'] = session.creatorChatHistory.messages;
   }
 
   // Add Definitions of Selected Lorebooks (World Info)
@@ -176,7 +201,7 @@ export async function runCharacterFieldGeneration({
       }
 
       if (!shouldSkip) {
-        const compiledValue = Handlebars.compile(field.value, { noEscape: true })({
+        const compiledValue = Handlebars.compile(field.value || '', { noEscape: true })({
           ...templateData,
 
           char: fieldName === 'mes_example' ? '{{char}}' : templateData.char,
@@ -184,7 +209,9 @@ export async function runCharacterFieldGeneration({
         });
 
         if (CHARACTER_FIELDS.includes(fieldName as CharacterFieldName)) {
-          coreFields[field.label] = compiledValue;
+          // Use field name as fallback if label is missing
+          const labelToUse = field.label || CHARACTER_LABELS[fieldName as CharacterFieldName] || fieldName;
+          coreFields[labelToUse] = compiledValue;
         } else if (fieldName.startsWith('alternate_greetings_')) {
           const index = parseInt(fieldName.split('_')[2]);
           alternateGreetingsFields[fieldName] = compiledValue;
@@ -193,7 +220,7 @@ export async function runCharacterFieldGeneration({
     });
 
     Object.entries(session.draftFields || {}).forEach(([_fieldName, field]) => {
-      draftFields[field.label] = Handlebars.compile(field.value, { noEscape: true })(templateData);
+      draftFields[field.label] = Handlebars.compile(field.value || '', { noEscape: true })(templateData);
     });
 
     const allFields = {
@@ -220,6 +247,13 @@ export async function runCharacterFieldGeneration({
         continue;
       }
 
+      if (mainContext.promptName === 'creatorChatHistory') {
+        // Each message in creatorChatHistory already has {role, content}
+        const chatMessages = session.creatorChatHistory?.messages ?? [];
+        messages.push(...chatMessages);
+        continue;
+      }
+
       let newTemplateData = structuredClone(templateData);
       if (mainContext.promptName === 'stDescription') {
         newTemplateData['char'] = '{{char}}';
@@ -232,7 +266,7 @@ export async function runCharacterFieldGeneration({
       }
       const message: Message = {
         role: mainContext.role,
-        content: Handlebars.compile(prompt.content, { noEscape: true })(newTemplateData),
+        content: Handlebars.compile(prompt.content || '', { noEscape: true })(newTemplateData),
       };
       message.content = message.content.replaceAll('{{user}}', '[[[crec_veryUniqueUserPlaceHolder]]]');
       message.content = message.content.replaceAll('{{char}}', '[[[crec_veryUniqueCharPlaceHolder]]]');

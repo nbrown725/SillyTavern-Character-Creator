@@ -10,13 +10,14 @@
             </button>
         </div>
     </div>
-    
+
     <div id="chat_messages" class="chat-messages">
         <!-- Messages will be dynamically added here -->
     </div>
-    
+
     <div class="chat-input-container">
-        <textarea id="chat_input" class="text_pole chat-input" placeholder="Type your message here..." rows="3"></textarea>
+        <textarea id="chat_input" class="text_pole chat-input" placeholder="Type your message here..."
+            rows="3"></textarea>
         <button id="send_message" class="menu_button" title="Send message">
             <i class="fa-solid fa-paper-plane"></i> Send
         </button>
@@ -25,11 +26,32 @@
 
 <!-- Template for chat messages -->
 <template id="chat_message_template">
-    <div class="chat-message">
+    <div class="chat-message" data-message-id="">
         <div class="message-header">
-            <span class="message-role"></span>
-            <span class="message-timestamp"></span>
+            <div class="message-info">
+                <span class="message-role"></span>
+                <span class="message-timestamp"></span>
+            </div>
+            <div class="message-actions">
+                <button class="message-action-btn edit-message-btn" title="Edit message">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="message-action-btn delete-message-btn" title="Delete message">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
         </div>
         <div class="message-content"></div>
+        <div class="message-edit-container" style="display: none;">
+            <textarea class="message-edit-textarea text_pole" rows="3"></textarea>
+            <div class="message-edit-actions">
+                <button class="menu_button save-edit-btn">
+                    <i class="fa-solid fa-check"></i> Save
+                </button>
+                <button class="menu_button cancel-edit-btn">
+                    <i class="fa-solid fa-xmark"></i> Cancel
+                </button>
+            </div>
+        </div>
     </div>
 </template>

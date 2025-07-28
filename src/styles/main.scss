@@ -1,5 +1,3 @@
-@import 'chat';
-
 @keyframes spin {
     from {
         transform: rotate(0deg);
@@ -420,3 +418,6 @@
         }
     }
 }
+
+// Import chat styles
+@import 'chat';

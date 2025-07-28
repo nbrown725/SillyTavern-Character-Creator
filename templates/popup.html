@@ -5,11 +5,8 @@
         <div class="column">
             <div class="card">
                 <h3>Connection Profile</h3>
-                <select
-                    id="charCreator_connectionProfile"
-                    class="text_pole"
-                    title="Select a Connection Profile"
-                ></select>
+                <select id="charCreator_connectionProfile" class="text_pole"
+                    title="Select a Connection Profile"></select>
             </div>
 
             <div class="card">
@@ -39,49 +36,26 @@
                         </select>
 
                         <div id="charCreator_firstX" style="display: none">
-                            <label
-                                >First
-                                <input
-                                    type="number"
-                                    class="text_pole small message-input"
-                                    id="charCreator_firstXMessages"
-                                    min="1"
-                                    placeholder="X"
-                                />
+                            <label>First
+                                <input type="number" class="text_pole small message-input"
+                                    id="charCreator_firstXMessages" min="1" placeholder="X" />
                                 Messages
                             </label>
                         </div>
                         <div id="charCreator_lastX" style="display: none">
-                            <label
-                                >Last
-                                <input
-                                    type="number"
-                                    class="text_pole small message-input"
-                                    id="charCreator_lastXMessages"
-                                    min="1"
-                                    placeholder="X"
-                                />
+                            <label>Last
+                                <input type="number" class="text_pole small message-input"
+                                    id="charCreator_lastXMessages" min="1" placeholder="X" />
                                 Messages
                             </label>
                         </div>
                         <div id="charCreator_rangeX" style="display: none">
-                            <label
-                                >Range:
-                                <input
-                                    type="number"
-                                    class="text_pole small message-input"
-                                    id="charCreator_rangeStart"
-                                    min="0"
-                                    placeholder="Start"
-                                />
+                            <label>Range:
+                                <input type="number" class="text_pole small message-input" id="charCreator_rangeStart"
+                                    min="0" placeholder="Start" />
                                 to
-                                <input
-                                    type="number"
-                                    class="text_pole small message-input"
-                                    id="charCreator_rangeEnd"
-                                    min="1"
-                                    placeholder="End"
-                                />
+                                <input type="number" class="text_pole small message-input" id="charCreator_rangeEnd"
+                                    min="1" placeholder="End" />
                             </label>
                         </div>
                     </div>
@@ -90,19 +64,13 @@
                     <label class="checkbox_label" for="charCreator_includeChars">
                         <input type="checkbox" id="charCreator_includeChars" />
                         Selected Characters' Data
-                        <button
-                            id="charCreator_clear-includeChars-button"
-                            class="menu_button interactable"
-                            title="Clear field content"
-                            tabindex="0"
-                        >
+                        <button id="charCreator_clear-includeChars-button" class="menu_button interactable"
+                            title="Clear field content" tabindex="0">
                             <i class="fa-solid fa-eraser"></i>
                         </button>
                     </label>
-                    <div
-                        id="charCreator_charIncludeContainer"
-                        style="margin-top: 5px; padding-left: 15px; display: none"
-                    >
+                    <div id="charCreator_charIncludeContainer"
+                        style="margin-top: 5px; padding-left: 15px; display: none">
                         <div id="charCreator_characterSelector" class="selector-summary"></div>
                     </div>
 
@@ -111,10 +79,8 @@
                         <input type="checkbox" id="charCreator_includeWorldInfo" />
                         Selected World Info
                     </label>
-                    <div
-                        id="charCreator_worldInfoIncludeContainer"
-                        style="margin-top: 5px; padding-left: 15px; display: none"
-                    >
+                    <div id="charCreator_worldInfoIncludeContainer"
+                        style="margin-top: 5px; padding-left: 15px; display: none">
                         <div id="charCreator_worldInfoSelector" class="selector-summary"></div>
                     </div>
 
@@ -143,37 +109,22 @@
                     </select>
                 </label>
                 <label id="charCreator_maxTokens_container" style="display: none; margin-top: 10px">
-                    <input
-                        id="charCreator_maxTokens"
-                        type="number"
-                        class="text_pole"
-                        min="1"
-                        step="1"
-                        placeholder="Enter max tokens"
-                    />
+                    <input id="charCreator_maxTokens" type="number" class="text_pole" min="1" step="1"
+                        placeholder="Enter max tokens" />
                 </label>
 
                 <!-- Max Response Tokens -->
                 <label style="margin-top: 10px">
                     Max Response Tokens
-                    <input
-                        id="charCreator_maxResponseTokens"
-                        type="number"
-                        class="text_pole"
-                        min="1"
-                        step="1"
-                        placeholder="Enter max response tokens"
-                    />
+                    <input id="charCreator_maxResponseTokens" type="number" class="text_pole" min="1" step="1"
+                        placeholder="Enter max response tokens" />
                 </label>
 
                 <!-- Output Format -->
                 <label style="margin-top: 10px">
                     Output Format
-                    <select
-                        id="charCreator_outputFormat"
-                        class="text_pole"
-                        title="Select the desired output format from the AI"
-                    >
+                    <select id="charCreator_outputFormat" class="text_pole"
+                        title="Select the desired output format from the AI">
                         <option value="none">Plain Text</option>
                         <option value="xml">XML</option>
                         <option value="json">JSON</option>
@@ -183,17 +134,11 @@
 
             <div class="card">
                 <h3>Additional Instructions</h3>
-                <select
-                    id="charCreator_promptPreset"
-                    class="text_pole"
-                    title="Select a Prompt Preset for additional instructions"
-                ></select>
-                <textarea
-                    id="charCreator_prompt"
-                    class="text_pole textarea_compact"
+                <select id="charCreator_promptPreset" class="text_pole"
+                    title="Select a Prompt Preset for additional instructions"></select>
+                <textarea id="charCreator_prompt" class="text_pole textarea_compact"
                     placeholder="Add specific instructions here (e.g., 'Make the description sound mysterious', 'Focus on their childhood trauma for personality'). This applies to the next field you generate."
-                    rows="4"
-                ></textarea>
+                    rows="4"></textarea>
             </div>
         </div>
 
@@ -249,19 +194,15 @@
                                     <button class="menu_button generate-field-button" title="Generate field content">
                                         <i class="fa-solid fa-wand-magic-sparkles"></i>
                                     </button>
-                                    <button
-                                        class="menu_button continue-field-button"
-                                        title="Continue from current content"
-                                    >
+                                    <button class="menu_button continue-field-button"
+                                        title="Continue from current content">
                                         <i class="fa-solid fa-arrow-right"></i>
                                     </button>
                                     <button class="menu_button clear-field-button" title="Clear field content">
                                         <i class="fa-solid fa-eraser"></i>
                                     </button>
-                                    <button
-                                        class="menu_button compare-field-button"
-                                        title="Compare with loaded character"
-                                    >
+                                    <button class="menu_button compare-field-button"
+                                        title="Compare with loaded character">
                                         <i class="fa-solid fa-code-compare"></i>
                                     </button>
                                 </div>
@@ -277,16 +218,12 @@
                             <label>Alternate Greetings</label>
                             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px">
                                 <!-- Container for tabs and add button -->
-                                <div
-                                    class="alternate-greetings-tabs"
-                                    style="display: flex; flex-wrap: wrap; gap: 5px; flex-grow: 1"
-                                >
+                                <div class="alternate-greetings-tabs"
+                                    style="display: flex; flex-wrap: wrap; gap: 5px; flex-grow: 1">
                                     <!-- Tab buttons will be added dynamically here -->
                                 </div>
-                                <button
-                                    class="menu_button add-alternate-greeting-button"
-                                    title="Add a new alternate greeting"
-                                >
+                                <button class="menu_button add-alternate-greeting-button"
+                                    title="Add a new alternate greeting">
                                     <i class="fa-solid fa-plus"></i> Add
                                 </button>
                             </div>
@@ -301,39 +238,24 @@
                                 </div>
                                 <div style="display: flex; flex-direction: column">
                                     <!-- Side buttons container -->
-                                    <button
-                                        class="menu_button generate-alternate-greeting-button"
-                                        title="Generate content for the current greeting"
-                                        disabled
-                                    >
+                                    <button class="menu_button generate-alternate-greeting-button"
+                                        title="Generate content for the current greeting" disabled>
                                         <i class="fa-solid fa-wand-magic-sparkles"></i>
                                     </button>
-                                    <button
-                                        class="menu_button continue-alternate-greeting-button"
-                                        title="Continue from current content"
-                                        disabled
-                                    >
+                                    <button class="menu_button continue-alternate-greeting-button"
+                                        title="Continue from current content" disabled>
                                         <i class="fa-solid fa-arrow-right"></i>
                                     </button>
-                                    <button
-                                        class="menu_button clear-alternate-greeting-button"
-                                        title="Clear content for the current greeting"
-                                        disabled
-                                    >
+                                    <button class="menu_button clear-alternate-greeting-button"
+                                        title="Clear content for the current greeting" disabled>
                                         <i class="fa-solid fa-eraser"></i>
                                     </button>
-                                    <button
-                                        class="menu_button compare-alternate-greeting-button"
-                                        title="Compare with loaded character"
-                                        disabled
-                                    >
+                                    <button class="menu_button compare-alternate-greeting-button"
+                                        title="Compare with loaded character" disabled>
                                         <i class="fa-solid fa-code-compare"></i>
                                     </button>
-                                    <button
-                                        class="menu_button delete-alternate-greeting-button"
-                                        title="Delete this alternate greeting"
-                                        disabled
-                                    >
+                                    <button class="menu_button delete-alternate-greeting-button"
+                                        title="Delete this alternate greeting" disabled>
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 </div>
@@ -361,10 +283,8 @@
                                     <button class="menu_button generate-field-button" title="Generate field content">
                                         <i class="fa-solid fa-wand-magic-sparkles"></i>
                                     </button>
-                                    <button
-                                        class="menu_button continue-field-button"
-                                        title="Continue from current content"
-                                    >
+                                    <button class="menu_button continue-field-button"
+                                        title="Continue from current content">
                                         <i class="fa-solid fa-arrow-right"></i>
                                     </button>
                                     <button class="menu_button clear-field-button" title="Clear field content">
@@ -386,16 +306,12 @@
                         <div class="alternate-greeting-tab-content" style="display: none">
                             <textarea
                                 class="text_pole textarea_compact field-value-textarea alternate-greeting-textarea"
-                                rows="4"
-                                placeholder="Enter greeting content..."
-                            ></textarea>
+                                rows="4" placeholder="Enter greeting content..."></textarea>
                             <div class="field-prompt-container" style="margin-top: 5px">
                                 <!-- Added prompt container -->
                                 <textarea
                                     class="text_pole textarea_compact field-prompt-textarea alternate-greeting-prompt-textarea"
-                                    rows="2"
-                                    placeholder="Enter specific prompt for this greeting..."
-                                ></textarea>
+                                    rows="2" placeholder="Enter specific prompt for this greeting..."></textarea>
                             </div>
                         </div>
                     </template>

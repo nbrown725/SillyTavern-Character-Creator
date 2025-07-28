@@ -641,6 +641,9 @@ async function handlePopupUI() {
       if (!activeSession.lastLoadedCharacterId) {
         activeSession.lastLoadedCharacterId = '';
       }
+      if (!activeSession.creatorChatHistory) {
+        activeSession.creatorChatHistory = { messages: [] };
+      }
       CHARACTER_FIELDS.forEach((field) => {
         if (!activeSession.fields[field]) {
           activeSession.fields[field] = {
@@ -803,7 +806,7 @@ async function handlePopupUI() {
         addDraftFieldButton.style.display = isDraft ? 'block' : 'none';
         exportDraftFieldsButton.style.display = isDraft ? 'block' : 'none';
         importDraftFieldsButton.style.display = isDraft ? 'block' : 'none';
-        
+
         // Load chat UI when chat tab is clicked
         if (targetTabId === 'charCreator_chatContainer') {
           const chatContainer = document.querySelector('#charCreator_chatContainer');
@@ -1485,6 +1488,7 @@ async function handlePopupUI() {
           loadCharDropdown!.deselectAll();
 
           activeSession.draftFields = {};
+          activeSession.creatorChatHistory = { messages: [] };
           saveSession();
           renderAllDraftFields();
         }
@@ -1784,6 +1788,9 @@ async function handlePopupUI() {
           // For draft fields, prepare session with specific prompt
           let sessionForGeneration: Session;
 
+          // For draft fields, just use the current activeSession directly
+          // No need to merge with localStorage since we don't need chat history for field generation
+          
           // Create a new fields object with proper typing
           // @ts-ignore
           const typedFields: Record<CharacterFieldName, CharacterField> = {};
@@ -1954,9 +1961,9 @@ async function handlePopupUI() {
               textarea.value,
               // @ts-ignore - Accessing character fields directly
               context.characters[parseInt(loadCharDropdown?.getValues()?.[0])]?.[fieldName] ??
-                // @ts-ignore - Accessing character fields directly
-                context.characters[parseInt(loadCharDropdown?.getValues()?.[0])]?.data?.[fieldName] ??
-                '',
+              // @ts-ignore - Accessing character fields directly
+              context.characters[parseInt(loadCharDropdown?.getValues()?.[0])]?.data?.[fieldName] ??
+              '',
             );
           });
         }
