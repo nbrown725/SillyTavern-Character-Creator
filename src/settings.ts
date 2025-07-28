@@ -15,12 +15,12 @@ import {
 } from './constants.js';
 import { globalContext } from './generate.js';
 
-export const extensionName = 'SillyTavern-Character-Creator';
+export const extensionName = 'SillyTavern-Character-Creator-Chat';
 export const VERSION = '0.2.2';
 export const FORMAT_VERSION = 'F_1.7';
 
 export const KEYS = {
-  EXTENSION: 'charCreator',
+  EXTENSION: 'charCreatorChat',
 } as const;
 
 export interface ContextToSend {
