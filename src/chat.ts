@@ -7,6 +7,7 @@ export interface ChatMessage {
     id: string;
     role: 'user' | 'assistant';
     content: string;
+    inlineImageUrl?: string;
     timestamp: number;
 }
 
@@ -20,6 +21,7 @@ export interface ChatSession {
 const CHAT_STORAGE_KEY = 'character_creator_chat_session';
 let currentSession: ChatSession | null = null;
 let chatContainer: JQuery | null = null;
+let pendingInlineImageDataUrl: string | null = null;
 
 export function initializeChat(): void {
     loadChatSession();
@@ -131,6 +133,38 @@ function bindChatEvents(): void {
             cancelEditMessage(messageId);
         }
     });
+
+    // Image attach UI
+    $('#attach_image').on('click', function () {
+        const input = document.getElementById('chat_image_input') as HTMLInputElement | null;
+        input?.click();
+    });
+    $('#chat_image_input').on('change', function (e) {
+        const input = e.target as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file.');
+            input.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function () {
+            pendingInlineImageDataUrl = reader.result as string;
+            const previewEl = $('#chat_image_preview');
+            previewEl.attr('src', pendingInlineImageDataUrl || '');
+            previewEl.closest('.chat-image-preview-container').show();
+        };
+        reader.readAsDataURL(file);
+    });
+    $('#clear_image').on('click', function () {
+        pendingInlineImageDataUrl = null;
+        const fileInput = document.getElementById('chat_image_input') as HTMLInputElement | null;
+        if (fileInput) fileInput.value = '';
+        const previewEl = $('#chat_image_preview');
+        previewEl.attr('src', '');
+        previewEl.closest('.chat-image-preview-container').hide();
+    });
 }
 
 async function sendMessage(): Promise<void> {
@@ -147,6 +181,7 @@ async function sendMessage(): Promise<void> {
         id: generateId(),
         role: 'user',
         content: message,
+        inlineImageUrl: pendingInlineImageDataUrl ?? undefined,
         timestamp: Date.now()
     };
 
@@ -154,7 +189,7 @@ async function sendMessage(): Promise<void> {
     input.val('');
 
     try {
-        const response = await generateChatResponse(message);
+        const response = await generateChatResponse(message, pendingInlineImageDataUrl ?? undefined);
 
         const assistantMessage: ChatMessage = {
             id: generateId(),
@@ -171,10 +206,17 @@ async function sendMessage(): Promise<void> {
         sendButton.prop('disabled', false);
         input.prop('disabled', false);
         input.focus();
+        // Reset pending image after send
+        pendingInlineImageDataUrl = null;
+        const fileInput = document.getElementById('chat_image_input') as HTMLInputElement | null;
+        if (fileInput) fileInput.value = '';
+        const previewEl = $('#chat_image_preview');
+        previewEl.attr('src', '');
+        previewEl.closest('.chat-image-preview-container').hide();
     }
 }
 
-async function generateChatResponse(userMessage: string): Promise<string> {
+async function generateChatResponse(userMessage: string, inlineImageUrl?: string): Promise<string> {
     const settings = settingsManager.getSettings();
 
     if (!settings.profileId) {
@@ -325,13 +367,31 @@ async function generateChatResponse(userMessage: string): Promise<string> {
             maxResponseToken: settings.maxResponseToken,
             targetField: 'chat_response',
             outputFormat: settings.outputFormat,
+            // Attach image to current user message for providers supporting inline parts
+            // @ts-ignore - extended optional prop for our usage
+            additionalContentPartsForCurrentUserMessage: inlineImageUrl
+                ? [{ type: 'image_url', image_url: { url: inlineImageUrl, detail: 'auto' } }]
+                : undefined,
         });
 
         // Now add both the user message and assistant response to chat history
-        activeSession.creatorChatHistory.messages.push({
-            role: 'user',
-            content: userMessage
-        });
+        if (inlineImageUrl) {
+            const parts: any[] = [];
+            if (userMessage && userMessage.length > 0) {
+                parts.push({ type: 'text', text: userMessage });
+            }
+            parts.push({ type: 'image_url', image_url: { url: inlineImageUrl, detail: 'auto' } });
+            // @ts-ignore content can be array for inline images
+            activeSession.creatorChatHistory.messages.push({
+                role: 'user',
+                content: parts,
+            });
+        } else {
+            activeSession.creatorChatHistory.messages.push({
+                role: 'user',
+                content: userMessage,
+            });
+        }
         activeSession.creatorChatHistory.messages.push({
             role: 'assistant',
             content: response
@@ -366,7 +426,12 @@ function renderMessage(message: ChatMessage): void {
     messageElement.addClass(`message-${message.role}`);
     messageElement.find('.message-role').text(message.role === 'user' ? 'You' : 'AI');
     messageElement.find('.message-timestamp').text(formatTimestamp(message.timestamp));
-    messageElement.find('.message-content').html(formatMessageContent(message.content));
+    const container = messageElement.find('.message-content');
+    container.html(formatMessageContent(message.content));
+    if (message.inlineImageUrl) {
+        const img = $(`<div class="inline-image" style="margin-top:6px;"><img src="${message.inlineImageUrl}" alt="inline image" style="max-width: 200px; max-height: 200px; border:1px solid var(--SmartThemeBorderColor); border-radius:4px;"/></div>`);
+        container.append(img);
+    }
 
     $('#chat_messages').append(messageElement);
 }
@@ -550,10 +615,18 @@ function updateCreatorChatHistory(): void {
     const activeSession = JSON.parse(localStorage.getItem(sessionKey) ?? '{}');
     
     if (activeSession.creatorChatHistory) {
-        activeSession.creatorChatHistory.messages = currentSession.messages.map(m => ({
-            role: m.role,
-            content: m.content
-        }));
+        activeSession.creatorChatHistory.messages = currentSession.messages.map(m => {
+            if (m.inlineImageUrl) {
+                const parts: any[] = [];
+                if (m.content && m.content.length > 0) {
+                    parts.push({ type: 'text', text: m.content });
+                }
+                parts.push({ type: 'image_url', image_url: { url: m.inlineImageUrl, detail: 'auto' } });
+                // @ts-ignore content can be array for inline images
+                return { role: m.role, content: parts };
+            }
+            return { role: m.role, content: m.content };
+        });
         
         localStorage.setItem(sessionKey, JSON.stringify(activeSession));
     }

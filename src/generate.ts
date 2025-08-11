@@ -77,6 +77,8 @@ export interface RunCharacterFieldGenerationParams {
   maxResponseToken: number;
   targetField: CharacterFieldName | string;
   outputFormat: OutputFormat;
+  // Optional: append extra content parts (e.g., inline images) as a separate user message
+  additionalContentPartsForCurrentUserMessage?: any[];
 }
 
 export async function runCharacterFieldGeneration({
@@ -94,6 +96,7 @@ export async function runCharacterFieldGeneration({
   maxResponseToken,
   targetField,
   outputFormat,
+  additionalContentPartsForCurrentUserMessage,
 }: RunCharacterFieldGenerationParams): Promise<string> {
   if (!profileId) {
     throw new Error('No connection profile selected.');
@@ -276,6 +279,16 @@ export async function runCharacterFieldGeneration({
       if (message.content) {
         messages.push(message);
       }
+    }
+
+    // If the caller provided additional content parts for the current user turn (e.g., an inline image),
+    // append them as a separate user message so providers that support content parts can consume it.
+    if (additionalContentPartsForCurrentUserMessage && additionalContentPartsForCurrentUserMessage.length > 0) {
+      messages.push({
+        role: 'user',
+        // @ts-ignore SillyTavern providers accept content arrays with {type: 'text'|'image_url'} parts
+        content: additionalContentPartsForCurrentUserMessage,
+      } as unknown as Message);
     }
 
     // If we're continuing from previous content, add it as an assistant message

@@ -16,11 +16,21 @@
     </div>
 
     <div class="chat-input-container">
+        <div class="chat-image-preview-container" style="display:none; margin-bottom: 6px;">
+            <img id="chat_image_preview" src="" alt="image preview" style="max-width: 160px; max-height: 120px; border: 1px solid var(--SmartThemeBorderColor); border-radius: 4px; margin-right: 8px;" />
+            <button id="clear_image" class="menu_button" title="Remove image"><i class="fa-solid fa-xmark"></i> Remove</button>
+        </div>
         <textarea id="chat_input" class="text_pole chat-input" placeholder="Type your message here..."
             rows="3"></textarea>
-        <button id="send_message" class="menu_button" title="Send message">
-            <i class="fa-solid fa-paper-plane"></i> Send
-        </button>
+        <div class="chat-input-actions" style="display:flex; gap: 6px; align-items: center;">
+            <button id="attach_image" class="menu_button" title="Attach image">
+                <i class="fa-solid fa-image"></i> Image
+            </button>
+            <input id="chat_image_input" type="file" accept="image/*" style="display:none;" />
+            <button id="send_message" class="menu_button" title="Send message">
+                <i class="fa-solid fa-paper-plane"></i> Send
+            </button>
+        </div>
     </div>
 </div>
 
