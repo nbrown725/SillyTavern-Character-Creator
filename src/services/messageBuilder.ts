@@ -90,12 +90,18 @@ export class MessageBuilder {
       }
 
       if (mainContext.promptName === 'creatorChatHistory') {
-        // Special handling for creator chat history
+        // Special handling for creator chat history - restore images for AI context
         const chatMessages = session.creatorChatHistory?.messages ?? [];
-        const convertedMessages: Message[] = chatMessages.map(msg => ({
-          role: msg.role,
-          content: msg.content, // Can be string or ContentPart[] - SillyTavern handles both
-        } as Message));
+        // Import SessionService dynamically to avoid circular imports
+        const { SessionService } = await import('./sessionService.js');
+        const sessionService = SessionService.getInstance();
+        const convertedMessages: Message[] = chatMessages.map(msg => {
+          const restoredMsg = sessionService.getMessageForAIContext(msg);
+          return {
+            role: restoredMsg.role,
+            content: restoredMsg.content, // Can be string or ContentPart[] - SillyTavern handles both
+          } as Message;
+        });
         messages.push(...convertedMessages);
         continue;
       }

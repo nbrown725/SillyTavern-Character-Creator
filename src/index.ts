@@ -34,7 +34,7 @@ import {
   SystemPromptKey,
   initializeSettings,
 } from './settings.js';
-// Removed unused imports - now handled by controllers
+import { Character } from 'sillytavern-utils-lib/types';
 import { initializeChat, loadChatUI } from './chat.js';
 
 import * as Handlebars from 'handlebars';

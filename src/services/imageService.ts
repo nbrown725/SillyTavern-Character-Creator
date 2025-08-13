@@ -13,6 +13,54 @@ export class ImageService {
   private constructor() {}
 
   /**
+   * Generate a unique ID for an image
+   */
+  generateImageId(): string {
+    return `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Create a compressed thumbnail for storage
+   */
+  async createThumbnail(imageDataUrl: string, maxWidth: number = 200, maxHeight: number = 200, quality: number = 0.7): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+
+        // Calculate new dimensions maintaining aspect ratio
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        const thumbnail = canvas.toDataURL('image/jpeg', quality);
+        resolve(thumbnail);
+      };
+      img.onerror = () => reject(new Error('Failed to load image for thumbnail creation'));
+      img.src = imageDataUrl;
+    });
+  }
+
+  /**
    * Convert image data URL to content part format
    */
   createImageContentPart(imageUrl: string, detail: 'auto' | 'low' | 'high' = 'auto'): ContentPart {

@@ -135,21 +135,28 @@ async function sendMessage(): Promise<void> {
     input.prop('disabled', true);
 
     try {
-        const { userMessage, aiMessage } = await chatController.sendMessage({
-            content: message,
-            imageUrl: pendingInlineImageDataUrl ?? undefined,
-        });
+		// Capture current image before clearing UI
+		const imageUrlForSend = pendingInlineImageDataUrl ?? undefined;
 
-        // Render both messages
+		        // Create and render user message immediately
+        const userMessage = await chatController.createAndStoreUserMessage({
+            content: message,
+            imageUrl: imageUrlForSend,
+        });
         renderMessage(userMessage);
-        renderMessage(aiMessage);
         scrollToBottom();
 
-        // Clear input
-        input.val('');
-        
-        // Reset pending image
-        resetImagePreview();
+		// Clear input and image preview immediately
+		input.val('');
+		resetImagePreview();
+
+        // Kick off AI response
+		const aiMessage = await chatController.generateAndStoreAiResponse({
+			content: message,
+			imageUrl: imageUrlForSend,
+		});
+        renderMessage(aiMessage);
+        scrollToBottom();
     } catch (error) {
         console.error('Failed to generate response:', error);
         alert('Failed to generate response. Please check your connection settings.');
@@ -310,9 +317,8 @@ async function deleteMessage(messageId: string): Promise<void> {
     if (!confirm('Are you sure you want to delete this message?')) return;
     
     try {
-        // Find message index by ID
-        const messages = chatController.getChatMessages();
-        const messageIndex = messages.findIndex(m => m.id === messageId);
+        // IDs are aligned to session indices; parse directly for robustness
+        const messageIndex = parseInt(messageId, 10);
         if (messageIndex !== -1) {
             await chatController.deleteMessage(messageIndex);
             

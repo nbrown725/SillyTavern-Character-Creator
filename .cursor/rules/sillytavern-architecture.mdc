@@ -3,9 +3,9 @@ alwaysApply: true
 description: Comprehensive architecture, structure, and execution flow of the SillyTavern Character Creator Chat extension.
 ---
 
-### SillyTavern Character Creator Chat — Architecture & Flow
+### SillyTavern Character Creator Chat — Architecture & Flow (Refactored)
 
-Use this guide to understand how the extension is structured and how data/UI flow through it. It covers entry points, settings, generation, UI wiring, and chat. File links are clickable to jump to source.
+Use this guide to understand how the extension is structured and how data/UI flow through it. The architecture follows a clean separation of concerns: UI Layer → Controllers → Services → External APIs. File links are clickable to jump to source.
 
 - **Manifest & Build Outputs**
   - Manifest: [manifest.json](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/manifest.json)
@@ -15,13 +15,14 @@ Use this guide to understand how the extension is structured and how data/UI flo
 
 - **Primary Entry Point**
   - [src/index.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/index.ts)
-    - On import, registers a small Handlebars helper and orchestrates lifecycle.
+    - On import, registers Handlebars helpers and orchestrates lifecycle.
     - `importCheck()` guards SillyTavern APIs; shows error if unavailable.
     - `initializeSettings()` loads/migrates settings; then `main()` executes.
     - `main()` calls:
       - `handleSettingsUI()`: renders settings UI and wires settings editors/presets.
-      - `handlePopupUI()`: injects extension icon(s), opens popup, binds UI (selectors, toggles, generation buttons, import/export, save/override character, save as world info entry, etc.).
+      - `handlePopupUI()`: injects extension icon(s), opens popup, delegates UI events to controllers/helpers.
       - `initializeChat()`: sets up the chat tab lazy-loader and chat session.
+    - All UI event handlers delegate to `UIHelpers` for common operations or controllers for business logic.
 
 - **Settings & Defaults**
   - [src/settings.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/settings.ts)
@@ -38,59 +39,87 @@ Use this guide to understand how the extension is structured and how data/UI flo
     - `initializeSettings()` defines migrations (`F_1.4` → `F_1.7`) to keep prior installs compatible.
   - Default prompt/template constants: [src/constants.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/constants.ts)
 
-- **Generation Core**
+- **Architecture Layers (Clean Separation)**
+  - **Controllers** - Business logic orchestration
+    - [src/controllers/characterController.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/controllers/characterController.ts)
+      - Handles all character operations: `generateField()`, `continueField()`, `loadCharacter()`, `resetFields()`, `saveCharacter()`, `saveAsWorldInfo()`, `exportDraftFields()`, `importDraftFields()`
+      - Orchestrates services and manages field generation flow
+    - [src/controllers/chatController.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/controllers/chatController.ts)
+      - Manages chat operations: `sendMessage()`, `editMessage()`, `deleteMessage()`, `clearChat()`, `exportChat()`
+      - Coordinates between UI, session storage, and message generation
+  
+  - **Services** - Core business logic
+    - [src/services/sessionService.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/services/sessionService.ts)
+      - Single source of truth for all extension data (singleton pattern)
+      - Manages localStorage persistence and session state
+      - Methods: `getSession()`, `updateSession()`, `updateField()`, `updateDraftField()`, `addChatMessage()`, etc.
+    - [src/services/messageBuilder.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/services/messageBuilder.ts)
+      - Centralizes all prompt/message construction logic
+      - Used by both chat and field generation for consistent message building
+      - Handles context assembly, template compilation, and message formatting
+    - [src/services/imageService.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/services/imageService.ts)
+      - Unified image handling for chat and field generation
+      - Methods: `processImageFile()`, `createImageContentPart()`, `createMessageContentParts()`, `createImagePreviewHtml()`
+  
+  - **Utilities** - Common UI operations
+    - [src/utils/uiHelpers.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/utils/uiHelpers.ts)
+      - Centralizes common UI patterns and event binding
+      - Methods: `bindFieldOperations()`, `handleFieldGeneration()`, `handleFieldComparison()`, `createTextChangeHandler()`, `showConfirmation()`, etc.
+      - Eliminates duplicate UI code across different field types
+
+  - **Type Definitions**
+    - [src/types.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/types.ts)
+      - Central type definitions: `Session`, `CharacterField`, `CreatorChatMessage`, `ChatMessage`, `ContentPart`, etc.
+      - Ensures type safety across all modules
+
+- **Generation Core (Simplified)**
   - [src/generate.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/generate.ts)
     - `globalContext = SillyTavern.getContext()` for ST integration.
     - Character fields definitions:
       - `CHARACTER_FIELDS`: `name, description, personality, scenario, first_mes, mes_example`.
       - `CHARACTER_LABELS`: human-readable labels.
-    - `Session` shape stores selected characters, selected lorebooks, `fields`, `draftFields`, `lastLoadedCharacterId`, and `creatorChatHistory`.
-    - `runCharacterFieldGeneration(params)` performs end-to-end prompt build and request:
+    - `Session` interface defined in [src/types.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/types.ts) - managed by SessionService
+    - `runCharacterFieldGeneration(params)` now simplified - delegates message building to MessageBuilder:
       1. Validates connection profile and resolves selected API from ST.
-      2. Builds `templateData` with `char`, `user`, `persona`, `targetField`, compiled `userInstructions` (from user prompt), `fieldSpecificInstructions` (from per-field draft/core prompt), and `activeFormatInstructions` based on selected format.
-      3. Adds selected character definitions and selected lorebook entries (filtered by `selected*` and disabled flags).
-      4. Adds current field values into `templateData.fields` partitioned into `core`, `alternate_greetings`, and `draft`, respecting the `dontSendOtherGreetings` logic when generating an alternate greeting.
-      5. Builds `messages` by iterating `mainContextList` (from settings presets):
-         - `chatHistory`: uses ST `buildPrompt` and applies message range rules.
-         - `creatorChatHistory`: injects messages stored in session.
-         - Other blocks: compiles Handlebars content with `templateData`, substitutes ST macros, and pushes with configured role.
-      6. If `continueFrom` is provided, appends it as an `assistant` message via `getPrefilled()` to prompt continuation.
-      7. Sends request via `ConnectionManagerRequestService.sendRequest(profileId, messages, maxResponseToken)`.
-      8. Parses the model output via [src/parsers.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/parsers.ts) based on `outputFormat`:
-         - `xml`: extracts from `<response>`
-         - `json`: extracts from `{ "response": "..." }`
-         - `none`: raw text
-      9. Returns the extracted string to the caller.
+      2. Delegates all message construction to `MessageBuilder.buildMessages()` which handles:
+         - Template data preparation
+         - Character/lorebook definitions
+         - Context assembly based on settings
+         - Handlebars compilation and macro substitution
+      3. Sends request via `ConnectionManagerRequestService.sendRequest(profileId, messages, maxResponseToken)`.
+      4. Parses the model output via [src/parsers.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/parsers.ts).
+      5. Returns the extracted string to the caller.
 
-- **Popup/UI Flow** (from `handlePopupUI()` in [src/index.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/index.ts))
-  - Injects icon(s) and opens popup rendering `templates/popup` via `globalContext.renderExtensionTemplateAsync('third-party/${extensionName}', 'templates/popup')`.
-  - Binds left column controls:
-    - Connection Profile selector (via ST utilities) and persists `profileId`.
-    - Context toggles: ST description, persona, character card, world info, existing fields; `dontSendOtherGreetings` for alternate greetings behavior.
-    - Message options: type (`none|all|first|last|range`) and parameters; hidden if no active chat/ids.
-    - Max context type (`profile|sampler|custom`) and custom token limit; max response tokens; output format select.
-    - Generic prompt preset editor (`promptPresets`).
-  - Binds right column core fields UI (rows/labels/prompt enablement), per `CHARACTER_FIELDS` and `fieldConfigs`:
-    - Each field has value textarea, optional per-field prompt, Generate, Continue, Compare, Clear.
-  - Alternate greetings sub-UI:
-    - Add/Delete/Switch tabs for greetings; per-greeting Generate/Continue/Compare/Clear.
-    - Respects `dontSendOtherGreetings` when assembling context.
-  - Draft fields:
-    - Add custom fields (name sanitized via `convertToVariableName`), Generate/Continue, Clear/Delete, Import/Export JSON.
-  - Load/Reset/Save actions:
-    - Load character dropdown: safely overwrites current editors (with confirm if non-empty), loads `alternate_greetings` into session.
-    - Reset core/draft fields and alternate greetings; clear chat; reset character selector.
-    - Save as New and Override existing character using ST utilities; optional Save as World Info entry by compiling a template and applying to selected lorebook.
-  - Generation button handler `handleFieldGeneration()`:
-    - Validates profile; resolves ST profile; builds `BuildPromptOptions` including message range; loads world info entries for selected worlds; projects session into typed fields; prunes prompts based on `contextToSend`; calls `runCharacterFieldGeneration()` and writes the result back into the target textarea, firing `change` to persist in `localStorage`.
+- **Popup/UI Flow** (Delegated Pattern)
+  - [src/index.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/index.ts) handles UI setup and event delegation:
+    - Renders popup via `globalContext.renderExtensionTemplateAsync()`
+    - Binds UI controls but delegates all operations to controllers/helpers
+  - **All field operations** (Generate/Continue/Compare/Clear) delegate to:
+    - `UIHelpers.handleFieldGeneration()` for generation with consistent loading states
+    - `UIHelpers.handleFieldComparison()` for diff display
+    - `UIHelpers.createTextChangeHandler()` for value updates
+    - `UIHelpers.createPromptChangeHandler()` for prompt updates
+  - **Character operations** delegate to `CharacterController`:
+    - Load character: `characterController.loadCharacter()`
+    - Reset fields: `characterController.resetFields()`
+    - Save character: `characterController.saveCharacter()`
+    - Save as World Info: `characterController.saveAsWorldInfo()`
+    - Import/Export draft fields: `characterController.importDraftFields()` / `exportDraftFields()`
+  - **Session updates** handled exclusively by `SessionService`:
+    - No direct localStorage access in UI code
+    - All state changes go through `sessionService.updateSession()`, `updateField()`, etc.
 
-- **Chat Tab**
-  - [src/chat.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/chat.ts)
-    - `initializeChat()` loads/creates a `ChatSession` in `localStorage`, sets a tab click listener to lazy-load chat UI.
-    - `loadChatUI()` renders `templates/chat`, binds handlers, and renders history.
-    - `sendMessage()` builds a chat-specific prompt, calls `runCharacterFieldGeneration()` with `targetField='chat_response'`, and appends assistant reply.
-    - Supports inline image attachments (as `image_url` parts) and updates both the chat session and `creatorChatHistory` in the main session for reuse in generation contexts.
-    - Provides export/clear and edit/delete message flows and keeps the main session’s `creatorChatHistory` in sync.
+- **Chat Tab** (Unified with Main Generation)
+  - [src/chat.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/chat.ts) - Pure UI layer
+    - `initializeChat()` sets up event handlers and tab click listener
+    - `loadChatUI()` renders `templates/chat` and binds UI events
+    - All chat operations delegate to `ChatController`:
+      - Send message: `chatController.sendMessage()`
+      - Edit/Delete: `chatController.editMessage()` / `deleteMessage()`
+      - Clear/Export: `chatController.clearChat()` / `exportChat()`
+    - Image handling via `chatController.processImageFile()`
+  - Chat messages stored in unified `SessionService.creatorChatHistory`
+  - Uses same `runCharacterFieldGeneration()` pipeline as field generation
 
 - **Parsers**
   - [src/parsers.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/parsers.ts)
@@ -113,15 +142,54 @@ Use this guide to understand how the extension is structured and how data/UI flo
   3. If needed, adjust parser or prompt templates in [src/constants.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/constants.ts) and `DEFAULT_PROMPT_CONTENTS` in [src/settings.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/settings.ts).
   4. Verify persistence in the `Session` object and import/export paths.
 
+- **Architecture Diagram**
+  ```
+  ┌─────────────────────────────────────────────────────────────┐
+  │                        UI Layer                              │
+  │  index.ts, chat.ts (DOM manipulation, event binding)        │
+  └─────────────────┬───────────────────────────────────────────┘
+                    │ Event Delegation
+  ┌─────────────────▼───────────────────────────────────────────┐
+  │                   Utility Layer                             │
+  │             UIHelpers (common UI operations)                │
+  └─────────────────┬───────────────────────────────────────────┘
+                    │ Business Logic
+  ┌─────────────────▼───────────────────────────────────────────┐
+  │                 Controller Layer                            │
+  │  CharacterController, ChatController (orchestration)       │
+  └─────────────────┬───────────────────────────────────────────┘
+                    │ Data & Operations
+  ┌─────────────────▼───────────────────────────────────────────┐
+  │                  Service Layer                              │
+  │ SessionService, MessageBuilder, ImageService (core logic)  │
+  └─────────────────┬───────────────────────────────────────────┘
+                    │ External APIs
+  ┌─────────────────▼───────────────────────────────────────────┐
+  │                 SillyTavern APIs                            │
+  │        buildPrompt, ConnectionManager, etc.                │
+  └─────────────────────────────────────────────────────────────┘
+  ```
+
 - **End-to-End Flow Summary**
-  1. Extension loads → `initializeSettings()` → `main()` → settings UI + popup UI wired → chat initialized.
-  2. User opens popup → configures context/options → selects characters/lorebooks → edits prompts/presets.
-  3. User clicks Generate/Continue for a field → prompt assembled (system blocks + optional chat/context) → request sent via selected profile → response parsed → field updated and persisted.
-  4. Optional: Save as new/override character; create a World Info entry; use Chat tab for brainstorming (feeds `creatorChatHistory`).
+  1. Extension loads → `initializeSettings()` → `main()` → UI setup with event delegation
+  2. User interaction → UI event → UIHelpers/Controller → Service → External API
+  3. Field generation: UI → `UIHelpers.handleFieldGeneration()` → `CharacterController.generateField()` → `MessageBuilder.buildMessages()` → `runCharacterFieldGeneration()` → Parse response → Update via `SessionService`
+  4. Chat: UI → `ChatController.sendMessage()` → Same message pipeline → Update session
+  5. All state persisted via `SessionService` → localStorage
 
 - **Templates & Styling**
   - HTML templates under `templates/` rendered via `globalContext.renderExtensionTemplateAsync('third-party/${extensionName}', ...)`.
   - Compiled CSS: `dist/style.css` from `src/styles` via sass.
+
+- **Key Architectural Improvements (Post-Refactor)**
+  - **Single Source of Truth**: All session data managed by `SessionService` - no more dual storage issues
+  - **Unified Message Pipeline**: Both chat and field generation use same `MessageBuilder` → `runCharacterFieldGeneration()` flow
+  - **Clean Separation of Concerns**: UI only handles DOM; Controllers orchestrate; Services manage data/logic
+  - **Consistent Image Handling**: Single `ImageService` for all image operations
+  - **No Code Duplication**: ~600+ lines of duplicate UI code eliminated via `UIHelpers`
+  - **Type Safety**: Centralized types in `types.ts` ensure consistency across modules
+  - **Maintainable**: Changes to business logic happen in one place (controllers/services)
+  - **Testable**: Each layer can be tested independently
 
 - **Related Docs**
   - SillyTavern extensions: https://github.com/SillyTavern/SillyTavern/blob/dev/docs/extensions.md

@@ -8,6 +8,9 @@ export interface ContentPart {
   image_url?: {
     url: string;
     detail?: 'auto' | 'low' | 'high';
+    // For persistence: store compressed/thumbnail version
+    thumbnailUrl?: string;
+    originalSize?: number;
   };
 }
 
@@ -46,4 +49,6 @@ export interface Session {
   draftFields: Record<string, CharacterField>;
   lastLoadedCharacterId: string;
   creatorChatHistory: CreatorChatHistory;
+  // Store image thumbnails separately to manage storage size
+  imageThumbnails?: Record<string, string>; // imageId -> thumbnail data URL
 }

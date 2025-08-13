@@ -32,6 +32,12 @@ export class SessionService {
       }
     } catch (error) {
       console.error('Failed to load session:', error);
+      // Try to recover by clearing corrupted data
+      try {
+        localStorage.removeItem(SESSION_KEY);
+      } catch (removeError) {
+        console.error('Failed to remove corrupted session:', removeError);
+      }
       this.createNewSession();
     }
   }
@@ -46,7 +52,8 @@ export class SessionService {
       fields: {},
       draftFields: {},
       lastLoadedCharacterId: '',
-      creatorChatHistory: { messages: [] }
+      creatorChatHistory: { messages: [] },
+      imageThumbnails: {}
     };
 
     // Initialize core fields
@@ -89,6 +96,9 @@ export class SessionService {
     if (!Array.isArray(this.session.creatorChatHistory.messages)) {
       this.session.creatorChatHistory.messages = [];
     }
+    if (!this.session.imageThumbnails) {
+      this.session.imageThumbnails = {};
+    }
 
     // Ensure all core fields exist
     CHARACTER_FIELDS.forEach((field) => {
@@ -107,7 +117,53 @@ export class SessionService {
    */
   private saveSession(): void {
     if (this.session) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(this.session));
+      try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(this.session));
+      } catch (error) {
+        // Handle storage quota issues gracefully by pruning oversized data
+        console.error('Failed to save session, attempting to prune and retry:', error);
+
+        try {
+          // Aggressive pruning for quota issues
+          const session = this.session;
+          if (session && session.creatorChatHistory && Array.isArray(session.creatorChatHistory.messages)) {
+            // First: strip all image data URLs from messages
+            session.creatorChatHistory.messages = session.creatorChatHistory.messages.map((msg) => this.sanitizeChatMessageForStorage(msg));
+
+            // Second: keep only last 20 messages for emergency
+            if (session.creatorChatHistory.messages.length > 20) {
+              session.creatorChatHistory.messages = session.creatorChatHistory.messages.slice(-20);
+            }
+
+            // Third: if still too large, clear thumbnails older than 1 hour
+            if (session.imageThumbnails) {
+              const oneHourAgo = Date.now() - (60 * 60 * 1000);
+              const filteredThumbnails: Record<string, string> = {};
+              Object.entries(session.imageThumbnails).forEach(([id, thumbnail]) => {
+                const timestamp = parseInt(id.split('_')[1]);
+                if (timestamp > oneHourAgo) {
+                  filteredThumbnails[id] = thumbnail;
+                }
+              });
+              session.imageThumbnails = filteredThumbnails;
+            }
+          }
+          localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        } catch (retryError) {
+          console.error('Failed to save session after pruning:', retryError);
+          // Last resort: clear chat history
+          try {
+            if (this.session) {
+              this.session.creatorChatHistory.messages = [];
+              this.session.imageThumbnails = {};
+              localStorage.setItem(SESSION_KEY, JSON.stringify(this.session));
+            }
+          } catch (finalError) {
+            console.error('Final fallback failed, clearing all data:', finalError);
+            localStorage.removeItem(SESSION_KEY);
+          }
+        }
+      }
     }
   }
 
@@ -176,10 +232,11 @@ export class SessionService {
   /**
    * Add a chat message to the creator chat history
    */
-  addChatMessage(message: CreatorChatMessage): void {
+  addChatMessage(message: CreatorChatMessage): number {
     const session = this.getSession();
-    session.creatorChatHistory.messages.push(message);
+    session.creatorChatHistory.messages.push(this.sanitizeChatMessageForStorage(message));
     this.saveSession();
+    return session.creatorChatHistory.messages.length - 1;
   }
 
   /**
@@ -188,7 +245,7 @@ export class SessionService {
   replaceChatMessage(index: number, message: CreatorChatMessage): void {
     const session = this.getSession();
     if (index >= 0 && index < session.creatorChatHistory.messages.length) {
-      session.creatorChatHistory.messages[index] = message;
+      session.creatorChatHistory.messages[index] = this.sanitizeChatMessageForStorage(message);
       this.saveSession();
     }
   }
@@ -231,11 +288,17 @@ export class SessionService {
           const textParts = msg.content.filter(part => part.type === 'text').map(part => part.text).join('');
           const imagePart = msg.content.find(part => part.type === 'image_url');
           content = textParts;
-          inlineImageUrl = imagePart?.image_url?.url;
+          // Use thumbnail for UI display, original URL for AI context
+          if (imagePart?.image_url?.thumbnailUrl) {
+            const imageId = imagePart.image_url.thumbnailUrl;
+            inlineImageUrl = this.getImageThumbnail(imageId) || imagePart.image_url.url;
+          } else {
+            inlineImageUrl = imagePart?.image_url?.url;
+          }
         }
 
-        return {
-          id: `${index}-${Date.now()}`, // Simple ID generation
+          return {
+          id: String(index),
           role: msg.role as 'user' | 'assistant',
           content,
           inlineImageUrl,
@@ -261,6 +324,87 @@ export class SessionService {
     } else {
       return { role, content: uiMessage.content };
     }
+  }
+
+  /**
+   * Store image thumbnail and return image ID for reference
+   */
+  storeImageThumbnail(imageDataUrl: string, thumbnailDataUrl: string): string {
+    const session = this.getSession();
+    if (!session.imageThumbnails) {
+      session.imageThumbnails = {};
+    }
+    
+    const imageId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    session.imageThumbnails[imageId] = thumbnailDataUrl;
+    return imageId;
+  }
+
+  /**
+   * Get image thumbnail by ID
+   */
+  getImageThumbnail(imageId: string): string | undefined {
+    const session = this.getSession();
+    return session.imageThumbnails?.[imageId];
+  }
+
+  /**
+   * Sanitize chat message before persisting to localStorage.
+   * For images: store only imageId reference, strip large data URLs completely
+   */
+  private sanitizeChatMessageForStorage(message: CreatorChatMessage): CreatorChatMessage {
+    const { role, content } = message;
+    if (typeof content === 'string') {
+      return { role, content };
+    }
+    if (Array.isArray(content)) {
+      // Process content parts to remove large data URLs
+      const processedParts: ContentPart[] = content.map(part => {
+        if (part.type === 'image_url' && part.image_url?.url) {
+          // Store only thumbnail reference to avoid quota issues
+          return {
+            type: 'image_url',
+            image_url: {
+              url: '', // Clear large data URL for storage
+              detail: part.image_url.detail || 'auto',
+              thumbnailUrl: part.image_url.thumbnailUrl, // Reference to stored thumbnail
+              originalSize: part.image_url.originalSize
+            }
+          };
+        }
+        return part;
+      });
+      return { role, content: processedParts };
+    }
+    return { role, content: '' };
+  }
+
+  /**
+   * Get full message content for AI context (restores image URLs from storage)
+   */
+  getMessageForAIContext(message: CreatorChatMessage): CreatorChatMessage {
+    const { role, content } = message;
+    if (typeof content === 'string') {
+      return { role, content };
+    }
+    if (Array.isArray(content)) {
+      const restoredParts: ContentPart[] = content.map(part => {
+        if (part.type === 'image_url' && part.image_url?.thumbnailUrl && !part.image_url.url) {
+          // Restore thumbnail for AI context
+          const thumbnail = this.getImageThumbnail(part.image_url.thumbnailUrl);
+          return {
+            type: 'image_url',
+            image_url: {
+              url: thumbnail || '', // Use thumbnail for AI
+              detail: part.image_url.detail || 'auto'
+            }
+          };
+        }
+        return part;
+      });
+      return { role, content: restoredParts };
+    }
+    return { role, content: '' };
   }
 
   /**

@@ -170,10 +170,9 @@ export class UIHelpers {
     mainDiv.appendChild(newDiv);
     
     const { globalContext } = await import('../generate.js');
-    await globalContext.Popup.show.display({
-      type: 'html' as any,
-      content: mainDiv.outerHTML,
-      title: `Compare ${fieldName}`,
+    const { POPUP_TYPE } = await import('sillytavern-utils-lib/types/popup');
+    await globalContext.callGenericPopup(mainDiv, POPUP_TYPE.DISPLAY, undefined, {
+      wide: true,
     });
   }
 

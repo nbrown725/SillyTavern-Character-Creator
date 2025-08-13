@@ -17,10 +17,27 @@ interface XmlParseOptions {
  * @throws Error if parsing fails or the format is invalid.
  */
 export function parseResponse(content: string, format: 'xml' | 'json' | 'none', options: XmlParseOptions = {}): string {
-  // Extract content from inside code blocks, handling language identifiers
-  const codeBlockRegex = /```(?:\w+\n|\n)([\s\S]*?)```/; // Use * to match zero or more characters
+  // For plain text, do not restrict to code blocks; return full content trimmed
+  if (format === 'none') {
+    let plain = content.trim();
+    if (options.previousContent) {
+      plain = options.previousContent + plain.trimEnd();
+    }
+    return plain;
+  }
+
+  // For structured formats, prefer code block content if present
+  const codeBlockRegex = /```(?:\w+\n|\n)([\s\S]*?)```/;
   const codeBlockMatch = content.match(codeBlockRegex);
   let cleanedContent = codeBlockMatch ? codeBlockMatch[1].trim() : content.trim();
+
+  // For XML specifically, try to isolate the <response>...</response> segment if present
+  if (format === 'xml') {
+    const responseTagMatch = cleanedContent.match(/<response[\s\S]*?<\/response>/i);
+    if (responseTagMatch) {
+      cleanedContent = responseTagMatch[0].trim();
+    }
+  }
 
   if (options.previousContent) {
     cleanedContent = options.previousContent + cleanedContent.trimEnd();
@@ -63,8 +80,7 @@ export function parseResponse(content: string, format: 'xml' | 'json' | 'none', 
         }
         throw new Error('Invalid JSON format: "response" key not found or its value is not a string.');
 
-      case 'none':
-        return cleanedContent;
+      // 'none' is handled above with an early return
 
       default:
         throw new Error(`Unsupported format specified: ${format}`);

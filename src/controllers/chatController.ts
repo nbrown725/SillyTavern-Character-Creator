@@ -2,7 +2,7 @@ import { runCharacterFieldGeneration, globalContext } from '../generate.js';
 import { SessionService } from '../services/sessionService.js';
 import { ImageService } from '../services/imageService.js';
 import { settingsManager } from '../settings.js';
-import { ChatMessage, CreatorChatMessage } from '../types.js';
+import { ChatMessage, CreatorChatMessage, ContentPart } from '../types.js';
 import { selected_group, this_chid, world_names } from 'sillytavern-utils-lib/config';
 
 export interface SendMessageOptions {
@@ -48,38 +48,20 @@ export class ChatController {
       throw new Error('No connection profile selected');
     }
 
-    // Create user message
-    const userMessage: ChatMessage = {
-      id: this.generateId(),
-      role: 'user',
-      content: content.trim(),
-      inlineImageUrl: imageUrl,
-      timestamp: Date.now(),
-    };
-
-    // Convert to creator chat message format and add to session
-    const userChatMessage = this.sessionService.convertUIMessageToChatMessage(
-      { content: content.trim(), imageUrl },
-      'user'
-    );
+    // Persist user message immediately with thumbnail
+    const userMessage = await this.createAndStoreUserMessage({ content: content.trim(), imageUrl });
 
     // Generate AI response
     const response = await this.generateChatResponse(content, imageUrl);
 
-    // Create AI message
+    // Create AI message and persist
+    const aiIndex = this.sessionService.addChatMessage({ role: 'assistant', content: response });
     const aiMessage: ChatMessage = {
-      id: this.generateId(),
+      id: String(aiIndex),
       role: 'assistant',
       content: response,
       timestamp: Date.now(),
     };
-
-    // Add both messages to session
-    this.sessionService.addChatMessage(userChatMessage);
-    this.sessionService.addChatMessage({
-      role: 'assistant',
-      content: response,
-    });
 
     return { userMessage, aiMessage };
   }
@@ -228,29 +210,103 @@ export class ChatController {
       maxResponseToken: settings.maxResponseToken,
       targetField: 'chat_response',
       outputFormat: settings.outputFormat,
-      // Attach image to current user message for providers supporting inline parts
-      additionalContentPartsForCurrentUserMessage: inlineImageUrl
-        ? [this.imageService.createImageContentPart(inlineImageUrl)]
-        : undefined,
+      // No need for additionalContentPartsForCurrentUserMessage since image is already in chat history
     });
 
     return response || '';
   }
 
-  private getMaxContext(settings: any): string | number {
+  private getMaxContext(settings: any): number | 'preset' | 'active' {
     switch (settings.maxContextType) {
       case 'custom':
-        return settings.maxContextValue;
+        return Number(settings.maxContextValue);
       case 'profile':
-        return 'preset' as const;
+        return 'preset';
       case 'sampler':
-        return 'active' as const;
+        return 'active';
       default:
-        return 'preset' as const;
+        return 'preset';
     }
   }
 
   private generateId(): string {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+
+  /**
+   * Create and persist the user message immediately, returning UI message.
+   */
+  async createAndStoreUserMessage(options: SendMessageOptions): Promise<ChatMessage> {
+    const { content, imageUrl } = options;
+    
+    let processedMessage: any = { content: content.trim(), imageUrl };
+    
+    // If there's an image, create thumbnail for storage
+    if (imageUrl) {
+      try {
+        const thumbnail = await this.imageService.createThumbnail(imageUrl);
+        const imageId = this.sessionService.storeImageThumbnail(imageUrl, thumbnail);
+        
+        // Prepare message with thumbnail reference
+        processedMessage = {
+          content: content.trim(),
+          imageUrl,
+          thumbnailId: imageId
+        };
+      } catch (error) {
+        console.warn('Failed to create thumbnail, storing original image:', error);
+      }
+    }
+    
+    const userChatMessage = this.createChatMessageWithImage(processedMessage, 'user');
+    const index = this.sessionService.addChatMessage(userChatMessage);
+    const userMessage: ChatMessage = {
+      id: String(index),
+      role: 'user',
+      content: content.trim(),
+      inlineImageUrl: imageUrl,
+      timestamp: Date.now(),
+    };
+    return userMessage;
+  }
+
+  /**
+   * Create chat message with proper image handling
+   */
+  private createChatMessageWithImage(uiMessage: { content: string; imageUrl?: string; thumbnailId?: string }, role: 'user' | 'assistant'): CreatorChatMessage {
+    if (uiMessage.imageUrl) {
+      const parts: ContentPart[] = [];
+      if (uiMessage.content.trim()) {
+        parts.push({ type: 'text', text: uiMessage.content });
+      }
+      parts.push({
+        type: 'image_url',
+        image_url: {
+          url: uiMessage.imageUrl,
+          detail: 'auto',
+          thumbnailUrl: uiMessage.thumbnailId, // Store thumbnail ID
+          originalSize: uiMessage.imageUrl.length
+        }
+      });
+      return { role, content: parts };
+    } else {
+      return { role, content: uiMessage.content };
+    }
+  }
+
+  /**
+   * Generate AI response for given input and persist it, returning UI message.
+   */
+  async generateAndStoreAiResponse(options: SendMessageOptions): Promise<ChatMessage> {
+    const { content, imageUrl } = options;
+    const response = await this.generateChatResponse(content, imageUrl);
+    const index = this.sessionService.addChatMessage({ role: 'assistant', content: response });
+    const aiMessage: ChatMessage = {
+      id: String(index),
+      role: 'assistant',
+      content: response,
+      timestamp: Date.now(),
+    };
+    return aiMessage;
   }
 }

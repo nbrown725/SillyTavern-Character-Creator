@@ -440,10 +440,10 @@ export class CharacterController {
 
   // Private helper methods
 
-  private getMaxContext(settings: ExtensionSettings): string | number {
+  private getMaxContext(settings: ExtensionSettings): number | 'preset' | 'active' {
     switch (settings.maxContextType) {
       case 'custom':
-        return settings.maxContextValue;
+        return Number(settings.maxContextValue);
       case 'profile':
         return 'preset';
       case 'sampler':
