@@ -2,29 +2,18 @@ import { globalContext, runCharacterFieldGeneration, CHARACTER_FIELDS, CHARACTER
 import { settingsManager } from "./settings.js";
 import { ExtractedData } from 'sillytavern-utils-lib/types';
 import { selected_group, this_chid, world_names } from 'sillytavern-utils-lib/config';
+import { SessionService } from './services/sessionService.js';
+import { ChatMessage, ContentPart } from './types.js';
 
-export interface ChatMessage {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    inlineImageUrl?: string;
-    timestamp: number;
-}
+// Remove duplicate ChatMessage interface - using the one from types.ts
+// Remove ChatSession - using unified session storage
 
-export interface ChatSession {
-    id: string;
-    messages: ChatMessage[];
-    createdAt: number;
-    lastModified: number;
-}
-
-const CHAT_STORAGE_KEY = 'character_creator_chat_session';
-let currentSession: ChatSession | null = null;
+// Use the unified session service
+const sessionService = SessionService.getInstance();
 let chatContainer: JQuery | null = null;
 let pendingInlineImageDataUrl: string | null = null;
 
 export function initializeChat(): void {
-    loadChatSession();
     setupChatEventHandlers();
 }
 
@@ -49,36 +38,7 @@ export async function loadChatUI(): Promise<void> {
     }
 }
 
-function loadChatSession(): void {
-    const stored = localStorage.getItem(CHAT_STORAGE_KEY);
-    if (stored) {
-        try {
-            currentSession = JSON.parse(stored);
-        } catch (e) {
-            console.error('Failed to parse chat session:', e);
-            createNewSession();
-        }
-    } else {
-        createNewSession();
-    }
-}
-
-function createNewSession(): void {
-    currentSession = {
-        id: generateId(),
-        messages: [],
-        createdAt: Date.now(),
-        lastModified: Date.now()
-    };
-    saveChatSession();
-}
-
-function saveChatSession(): void {
-    if (currentSession) {
-        currentSession.lastModified = Date.now();
-        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(currentSession));
-    }
-}
+// Removed separate chat session functions - using unified sessionService
 
 function setupChatEventHandlers(): void {
     $(document).on('click', '.tab-button[data-tab="charCreator_chatContainer"]', function () {
@@ -224,44 +184,7 @@ async function generateChatResponse(userMessage: string, inlineImageUrl?: string
     }
 
     try {
-        const sessionKey = `charCreator`;
-        const activeSession = JSON.parse(localStorage.getItem(sessionKey) ?? '{}');
-        
-        // Only initialize missing properties - don't overwrite existing data
-        if (!activeSession.selectedCharacterIndexes) {
-            activeSession.selectedCharacterIndexes = this_chid ? [this_chid] : [];
-        }
-        if (!activeSession.selectedWorldNames) {
-            activeSession.selectedWorldNames = [];
-        }
-        if (!activeSession.fields) {
-            activeSession.fields = {};
-        }
-        if (!activeSession.draftFields) {
-            activeSession.draftFields = {};
-        }
-        if (!activeSession.lastLoadedCharacterId) {
-            activeSession.lastLoadedCharacterId = '';
-        }
-        
-        // Only initialize missing fields - preserve existing field data
-        CHARACTER_FIELDS.forEach((field) => {
-            if (!activeSession.fields[field]) {
-                activeSession.fields[field] = {
-                    value: '',
-                    prompt: '',
-                    label: CHARACTER_LABELS[field],
-                };
-            }
-        });
-        
-        // Ensure creatorChatHistory exists but preserve existing messages
-        if (!activeSession.creatorChatHistory) {
-            activeSession.creatorChatHistory = { messages: [] };
-        }
-        if (!Array.isArray(activeSession.creatorChatHistory.messages)) {
-            activeSession.creatorChatHistory.messages = [];
-        }
+        const activeSession = sessionService.getSession();
 
         // Don't add the user message to chat history yet - do it after generation
         // to avoid duplicate messages in the request
@@ -368,37 +291,22 @@ async function generateChatResponse(userMessage: string, inlineImageUrl?: string
             targetField: 'chat_response',
             outputFormat: settings.outputFormat,
             // Attach image to current user message for providers supporting inline parts
-            // @ts-ignore - extended optional prop for our usage
             additionalContentPartsForCurrentUserMessage: inlineImageUrl
-                ? [{ type: 'image_url', image_url: { url: inlineImageUrl, detail: 'auto' } }]
+                ? [{ type: 'image_url', image_url: { url: inlineImageUrl, detail: 'auto' } } as ContentPart]
                 : undefined,
         });
 
         // Now add both the user message and assistant response to chat history
-        if (inlineImageUrl) {
-            const parts: any[] = [];
-            if (userMessage && userMessage.length > 0) {
-                parts.push({ type: 'text', text: userMessage });
-            }
-            parts.push({ type: 'image_url', image_url: { url: inlineImageUrl, detail: 'auto' } });
-            // @ts-ignore content can be array for inline images
-            activeSession.creatorChatHistory.messages.push({
-                role: 'user',
-                content: parts,
-            });
-        } else {
-            activeSession.creatorChatHistory.messages.push({
-                role: 'user',
-                content: userMessage,
-            });
-        }
-        activeSession.creatorChatHistory.messages.push({
+        const userChatMessage = sessionService.convertUIMessageToChatMessage(
+            { content: userMessage, imageUrl: inlineImageUrl },
+            'user'
+        );
+        sessionService.addChatMessage(userChatMessage);
+        
+        sessionService.addChatMessage({
             role: 'assistant',
             content: response
         });
-
-        // Save the updated session
-        localStorage.setItem(sessionKey, JSON.stringify(activeSession));
 
         return response || '';
     } catch (error) {
@@ -409,10 +317,13 @@ async function generateChatResponse(userMessage: string, inlineImageUrl?: string
 
 
 function addMessageToChat(message: ChatMessage): void {
-    if (!currentSession) return;
-
-    currentSession.messages.push(message);
-    saveChatSession();
+    // Convert UI message to creator chat message and add to session
+    const creatorMessage = sessionService.convertUIMessageToChatMessage(
+        { content: message.content, imageUrl: message.inlineImageUrl },
+        message.role
+    );
+    sessionService.addChatMessage(creatorMessage);
+    
     renderMessage(message);
     scrollToBottom();
 }
@@ -437,10 +348,9 @@ function renderMessage(message: ChatMessage): void {
 }
 
 function renderChatHistory(): void {
-    if (!currentSession) return;
-
     $('#chat_messages').empty();
-    currentSession.messages.forEach(message => renderMessage(message));
+    const messages = sessionService.getChatMessagesForUI();
+    messages.forEach(message => renderMessage(message));
     scrollToBottom();
 }
 
@@ -454,21 +364,19 @@ function scrollToBottom(): void {
 function clearChat(): void {
     if (!confirm('Are you sure you want to clear the chat history?')) return;
 
-    createNewSession();
+    sessionService.clearChatHistory();
     $('#chat_messages').empty();
-    
-    // Also clear creatorChatHistory in main session
-    updateCreatorChatHistory();
 }
 
 function exportChat(): void {
-    if (!currentSession || currentSession.messages.length === 0) {
+    const messages = sessionService.getChatMessagesForUI();
+    if (messages.length === 0) {
         alert('No chat history to export');
         return;
     }
 
     const exportData = {
-        session: currentSession,
+        messages: messages,
         exportedAt: new Date().toISOString()
     };
 
@@ -493,9 +401,8 @@ function generateId(): string {
 }
 
 function startEditMessage(messageId: string): void {
-    if (!currentSession) return;
-    
-    const message = currentSession.messages.find(m => m.id === messageId);
+    const messages = sessionService.getChatMessagesForUI();
+    const message = messages.find(m => m.id === messageId);
     if (!message) return;
     
     const messageElement = $(`.chat-message[data-message-id="${messageId}"]`);
@@ -514,8 +421,6 @@ function startEditMessage(messageId: string): void {
 }
 
 function saveEditMessage(messageId: string): void {
-    if (!currentSession) return;
-    
     const messageElement = $(`.chat-message[data-message-id="${messageId}"]`);
     const editContainer = messageElement.find('.message-edit-container');
     const editTextarea = editContainer.find('.message-edit-textarea');
@@ -526,20 +431,22 @@ function saveEditMessage(messageId: string): void {
         return;
     }
     
-    // Update message in session
-    const messageIndex = currentSession.messages.findIndex(m => m.id === messageId);
+    // Find message index by ID
+    const messages = sessionService.getChatMessagesForUI();
+    const messageIndex = messages.findIndex(m => m.id === messageId);
     if (messageIndex !== -1) {
-        currentSession.messages[messageIndex].content = newContent;
-        saveChatSession();
+        // Update message in session - convert back to creator chat message format
+        const updatedMessage = sessionService.convertUIMessageToChatMessage(
+            { content: newContent },
+            messages[messageIndex].role
+        );
+        sessionService.replaceChatMessage(messageIndex, updatedMessage);
         
         // Update UI
         const contentElement = messageElement.find('.message-content');
         contentElement.html(formatMessageContent(newContent));
         contentElement.show();
         editContainer.hide();
-        
-        // Update creatorChatHistory in main session
-        updateCreatorChatHistory();
     }
 }
 
@@ -553,24 +460,19 @@ function cancelEditMessage(messageId: string): void {
 }
 
 function deleteMessage(messageId: string): void {
-    if (!currentSession) return;
-    
     if (!confirm('Are you sure you want to delete this message?')) return;
     
-    // Remove message from session
-    const messageIndex = currentSession.messages.findIndex(m => m.id === messageId);
+    // Find message index by ID
+    const messages = sessionService.getChatMessagesForUI();
+    const messageIndex = messages.findIndex(m => m.id === messageId);
     if (messageIndex !== -1) {
-        currentSession.messages.splice(messageIndex, 1);
-        saveChatSession();
+        sessionService.deleteChatMessage(messageIndex);
         
         // Remove from UI with animation
         const messageElement = $(`.chat-message[data-message-id="${messageId}"]`);
         messageElement.fadeOut(200, function() {
             $(this).remove();
         });
-        
-        // Update creatorChatHistory in main session
-        updateCreatorChatHistory();
     }
 }
 
@@ -607,42 +509,20 @@ function formatMessageContent(content: string): string {
     return formatted;
 }
 
-function updateCreatorChatHistory(): void {
-    if (!currentSession) return;
-    
-    // Update the main session's creatorChatHistory
-    const sessionKey = `charCreator`;
-    const activeSession = JSON.parse(localStorage.getItem(sessionKey) ?? '{}');
-    
-    if (activeSession.creatorChatHistory) {
-        activeSession.creatorChatHistory.messages = currentSession.messages.map(m => {
-            if (m.inlineImageUrl) {
-                const parts: any[] = [];
-                if (m.content && m.content.length > 0) {
-                    parts.push({ type: 'text', text: m.content });
-                }
-                parts.push({ type: 'image_url', image_url: { url: m.inlineImageUrl, detail: 'auto' } });
-                // @ts-ignore content can be array for inline images
-                return { role: m.role, content: parts };
-            }
-            return { role: m.role, content: m.content };
-        });
-        
-        localStorage.setItem(sessionKey, JSON.stringify(activeSession));
-    }
+// Removed updateCreatorChatHistory - no longer needed with unified session
+
+export function getChatMessagesForUI(): ChatMessage[] {
+    return sessionService.getChatMessagesForUI();
 }
 
-export function getChatSession(): ChatSession | null {
-    return currentSession;
-}
-
-export function formatChatAsContext(session: ChatSession): string {
-    if (!session || session.messages.length === 0) return '';
+export function formatChatAsContext(): string {
+    const messages = sessionService.getChatMessagesForUI();
+    if (messages.length === 0) return '';
 
     const header = "=== Character Brainstorming Chat ===\n\n";
-    const messages = session.messages.map(msg =>
+    const messageStrings = messages.map(msg =>
         `${msg.role === 'user' ? 'User' : 'AI'}: ${msg.content}`
     ).join('\n\n');
 
-    return header + messages + '\n\n=== End of Chat ===\n';
+    return header + messageStrings + '\n\n=== End of Chat ===\n';
 }

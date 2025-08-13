@@ -5,6 +5,7 @@ import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 import { name1, st_echo } from 'sillytavern-utils-lib/config';
 import { ExtensionSettings, MessageRole, OutputFormat, settingsManager } from './settings.js';
+import { Session, CreatorChatMessage, ContentPart } from './types.js';
 
 import * as Handlebars from 'handlebars';
 
@@ -30,29 +31,8 @@ export const CHARACTER_LABELS: Record<CharacterFieldName, string> = {
   mes_example: 'Example Dialogue',
 };
 
-export interface CharacterField {
-  prompt: string;
-  value: string;
-  label: string;
-}
-
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-export interface creatorChatHistory {
-  messages: ChatMessage[];
-}
-
-export interface Session {
-  selectedCharacterIndexes: string[];
-  selectedWorldNames: string[];
-  fields: Record<string, CharacterField>;
-  draftFields: Record<string, CharacterField>;
-  lastLoadedCharacterId: string;
-  creatorChatHistory: creatorChatHistory;
-}
+// Moved to types.ts - keeping exports for backward compatibility
+export type { CharacterField, Session, CreatorChatMessage as ChatMessage } from './types.js';
 
 // @ts-ignore
 const dumbSettings = new ExtensionSettingsManager<ExtensionSettings>('dumb', {}).getSettings();
@@ -78,7 +58,7 @@ export interface RunCharacterFieldGenerationParams {
   targetField: CharacterFieldName | string;
   outputFormat: OutputFormat;
   // Optional: append extra content parts (e.g., inline images) as a separate user message
-  additionalContentPartsForCurrentUserMessage?: any[];
+  additionalContentPartsForCurrentUserMessage?: ContentPart[];
 }
 
 export async function runCharacterFieldGeneration({
@@ -251,9 +231,13 @@ export async function runCharacterFieldGeneration({
       }
 
       if (mainContext.promptName === 'creatorChatHistory') {
-        // Each message in creatorChatHistory already has {role, content}
+        // Convert CreatorChatMessage to Message format
         const chatMessages = session.creatorChatHistory?.messages ?? [];
-        messages.push(...chatMessages);
+        const convertedMessages: Message[] = chatMessages.map(msg => ({
+          role: msg.role,
+          content: msg.content, // Can be string or ContentPart[] - SillyTavern handles both
+        } as Message));
+        messages.push(...convertedMessages);
         continue;
       }
 
@@ -286,9 +270,8 @@ export async function runCharacterFieldGeneration({
     if (additionalContentPartsForCurrentUserMessage && additionalContentPartsForCurrentUserMessage.length > 0) {
       messages.push({
         role: 'user',
-        // @ts-ignore SillyTavern providers accept content arrays with {type: 'text'|'image_url'} parts
-        content: additionalContentPartsForCurrentUserMessage,
-      } as unknown as Message);
+        content: additionalContentPartsForCurrentUserMessage as any, // SillyTavern providers accept content arrays
+      } as Message);
     }
 
     // If we're continuing from previous content, add it as an assistant message

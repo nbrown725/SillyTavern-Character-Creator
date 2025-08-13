@@ -16,12 +16,12 @@ import { POPUP_TYPE } from 'sillytavern-utils-lib/types/popup';
 import {
   globalContext,
   runCharacterFieldGeneration,
-  Session,
   CharacterFieldName,
   CHARACTER_FIELDS,
-  CharacterField,
   CHARACTER_LABELS,
 } from './generate.js';
+import { Session, CharacterField } from './types.js';
+import { SessionService } from './services/sessionService.js';
 
 import {
   extensionName,
@@ -64,6 +64,7 @@ async function handleSettingsUI() {
   if (!settingsContainer) return;
 
   const settings = settingsManager.getSettings();
+  const sessionService = SessionService.getInstance();
 
   let setMainContextList: (list: SortableListItemData[]) => void;
   let getMainContextList: () => SortableListItemData[];
@@ -421,7 +422,7 @@ async function handleSettingsUI() {
     );
     if (confirm) {
       // Clear active session
-      localStorage.removeItem('charCreator');
+      sessionService.resetSession();
 
       // Reset all settings to default
       settingsManager.resetSettings();
@@ -623,38 +624,10 @@ async function handlePopupUI() {
       });
 
       // --- Setup Character Context ---
-      const sessionKey = `charCreator`;
-      const activeSession: Session = JSON.parse(localStorage.getItem(sessionKey) ?? '{}');
-      if (!activeSession.selectedCharacterIndexes) {
-        activeSession.selectedCharacterIndexes = this_chid ? [this_chid] : [];
-      }
-      if (!activeSession.selectedWorldNames) {
-        activeSession.selectedWorldNames = [];
-      }
-      if (!activeSession.fields) {
-        // @ts-ignore
-        activeSession.fields = {};
-      }
-      if (!activeSession.draftFields) {
-        activeSession.draftFields = {};
-      }
-      if (!activeSession.lastLoadedCharacterId) {
-        activeSession.lastLoadedCharacterId = '';
-      }
-      if (!activeSession.creatorChatHistory) {
-        activeSession.creatorChatHistory = { messages: [] };
-      }
-      CHARACTER_FIELDS.forEach((field) => {
-        if (!activeSession.fields[field]) {
-          activeSession.fields[field] = {
-            value: '',
-            prompt: '',
-            label: '',
-          };
-        }
-      });
+      const sessionService = SessionService.getInstance();
+      const activeSession = sessionService.getSession();
       const saveSession = () => {
-        localStorage.setItem(sessionKey, JSON.stringify(activeSession));
+        // Session is automatically saved by sessionService, no need for manual save
       };
 
       const context = SillyTavern.getContext();
@@ -677,8 +650,7 @@ async function handlePopupUI() {
           placeholderText: 'Select characters...',
           enableSearch: characterItems.length > 10,
           onSelectChange: (_previousValues: string[], newValues: string[]) => {
-            activeSession.selectedCharacterIndexes = newValues;
-            saveSession();
+            sessionService.updateSession({ selectedCharacterIndexes: newValues });
           },
         });
         const includeCharsClearButton = popupContainer.querySelector(
@@ -700,8 +672,7 @@ async function handlePopupUI() {
             placeholderText: 'Select lorebooks...',
             enableSearch: allWorldNames.length > 10,
             onSelectChange: (_previousValues: string[], newValues: string[]) => {
-              activeSession.selectedWorldNames = newValues;
-              saveSession();
+              sessionService.updateSession({ selectedWorldNames: newValues });
             },
           });
         } else if (worldInfoSelectorContainer) {
@@ -918,18 +889,12 @@ async function handlePopupUI() {
 
             // Add change listener for value textarea
             valueTextarea.addEventListener('change', () => {
-              if (activeSession.fields[fieldName]) {
-                activeSession.fields[fieldName].value = valueTextarea.value;
-                saveSession();
-              }
+              sessionService.updateField(fieldName, { value: valueTextarea.value });
             });
 
             // Add change listener for prompt textarea
             promptTextarea.addEventListener('change', () => {
-              if (activeSession.fields[fieldName]) {
-                activeSession.fields[fieldName].prompt = promptTextarea.value;
-                saveSession();
-              }
+              sessionService.updateField(fieldName, { prompt: promptTextarea.value });
             });
 
             contentArea.appendChild(contentClone);
@@ -957,8 +922,7 @@ async function handlePopupUI() {
         newAddButton.addEventListener('click', () => {
           const nextNumber = greetingFieldNames.length + 1;
           const newFieldName = `alternate_greetings_${nextNumber}`;
-          activeSession.fields[newFieldName] = { prompt: '', value: '', label: `Alternate Greeting ${nextNumber}` };
-          saveSession();
+          sessionService.updateField(newFieldName, { prompt: '', value: '', label: `Alternate Greeting ${nextNumber}` });
           renderAlternateGreetingsUI(parentElement); // Re-render
           switchTab(greetingFieldNames.length);
         });
@@ -973,20 +937,24 @@ async function handlePopupUI() {
             `Are you sure you want to delete Greeting ${activeTabIndex + 1}? This cannot be undone.`,
           );
           if (confirm) {
-            delete activeSession.fields[fieldNameToDelete];
+            // Get current session to work with
+            const currentSession = sessionService.getSession();
+            delete currentSession.fields[fieldNameToDelete];
+            
             // Re-index subsequent greetings
             const subsequentFieldNames = greetingFieldNames.slice(activeTabIndex + 1);
             subsequentFieldNames.forEach((oldName, i) => {
               const newNumber = activeTabIndex + i + 1;
               const newName = `alternate_greetings_${newNumber}`;
               if (oldName !== newName) {
-                activeSession.fields[newName] = activeSession.fields[oldName];
-                activeSession.fields[newName].label = `Alternate Greeting ${newNumber}`;
-                delete activeSession.fields[oldName];
+                currentSession.fields[newName] = currentSession.fields[oldName];
+                currentSession.fields[newName].label = `Alternate Greeting ${newNumber}`;
+                delete currentSession.fields[oldName];
               }
             });
 
-            saveSession();
+            // Update the session with all changes
+            sessionService.updateSession({ fields: currentSession.fields });
             renderAlternateGreetingsUI(parentElement); // Re-render
             // Adjust active tab if the last one was deleted
             const newFieldNames = getAlternateGreetingFieldNames();
@@ -1075,8 +1043,7 @@ async function handlePopupUI() {
 
           if (activeSession.fields[targetFieldName]) {
             valueTextarea!.value = '';
-            activeSession.fields[targetFieldName].value = '';
-            saveSession();
+            sessionService.updateField(targetFieldName, { value: '' });
           }
         });
       };
@@ -1178,27 +1145,18 @@ async function handlePopupUI() {
         clearButton.dataset.draftFieldName = fieldName;
         // Event listener for value change
         textarea.addEventListener('change', () => {
-          if (activeSession.draftFields[fieldName]) {
-            activeSession.draftFields[fieldName].value = textarea.value;
-            saveSession();
-          }
+          sessionService.updateDraftField(fieldName, { value: textarea.value });
         });
 
         // Event listener for prompt change
         promptTextarea.addEventListener('change', () => {
-          if (activeSession.draftFields[fieldName]) {
-            activeSession.draftFields[fieldName].prompt = promptTextarea.value;
-            saveSession();
-          }
+          sessionService.updateDraftField(fieldName, { prompt: promptTextarea.value });
         });
 
         // Event listener for clear button (Draft Fields)
         clearButton.addEventListener('click', () => {
-          if (activeSession.draftFields[fieldName]) {
-            textarea.value = ''; // Clear the textarea visually
-            activeSession.draftFields[fieldName].value = ''; // Update the session data
-            saveSession();
-          }
+          textarea.value = ''; // Clear the textarea visually
+          sessionService.updateDraftField(fieldName, { value: '' });
         });
 
         // Event listener for delete button
@@ -1208,9 +1166,8 @@ async function handlePopupUI() {
             `Are you sure you want to delete the draft field "${fieldData.label}"? This cannot be undone.`,
           );
           if (confirm) {
-            delete activeSession.draftFields[fieldName];
+            sessionService.deleteDraftField(fieldName);
             fieldDiv.remove();
-            saveSession();
           }
         });
 
@@ -1298,8 +1255,7 @@ async function handlePopupUI() {
             }
 
             if (confirm) {
-              activeSession.draftFields = importData.draftFields;
-              saveSession();
+              sessionService.updateSession({ draftFields: importData.draftFields });
               renderAllDraftFields();
               st_echo('success', 'Draft fields imported successfully');
             }
@@ -1330,9 +1286,9 @@ async function handlePopupUI() {
           }
 
           // Add the new draft field
-          activeSession.draftFields[fieldName] = { value: '', prompt: '', label: fieldNameInput };
-          renderDraftField(fieldName, activeSession.draftFields[fieldName]);
-          saveSession();
+          sessionService.updateDraftField(fieldName, { value: '', prompt: '', label: fieldNameInput });
+          const updatedSession = sessionService.getSession();
+          renderDraftField(fieldName, updatedSession.draftFields[fieldName]);
         });
       }
 
@@ -1443,8 +1399,7 @@ async function handlePopupUI() {
             }
 
             // Store the selected character's avatar in session
-            activeSession.lastLoadedCharacterId = character.avatar;
-            saveSession(); // Save session after loading all fields
+            sessionService.updateSession({ lastLoadedCharacterId: character.avatar });
           },
         });
       }
@@ -1487,9 +1442,10 @@ async function handlePopupUI() {
           // Reset load character selector
           loadCharDropdown!.deselectAll();
 
-          activeSession.draftFields = {};
-          activeSession.creatorChatHistory = { messages: [] };
-          saveSession();
+          sessionService.updateSession({ 
+            draftFields: {},
+            creatorChatHistory: { messages: [] }
+          });
           renderAllDraftFields();
         }
       });
@@ -1994,20 +1950,12 @@ async function handlePopupUI() {
 
           textarea.addEventListener('change', () => {
             const field = fieldName as CharacterFieldName;
-            activeSession.fields[field] = {
-              ...activeSession.fields[field],
-              value: textarea.value,
-            };
-            saveSession();
+            sessionService.updateField(field, { value: textarea.value });
           });
 
           promptTextarea?.addEventListener('change', () => {
             const field = fieldName as CharacterFieldName;
-            activeSession.fields[field] = {
-              ...activeSession.fields[field],
-              prompt: promptTextarea.value,
-            };
-            saveSession();
+            sessionService.updateField(field, { prompt: promptTextarea.value });
           });
         }
       });
