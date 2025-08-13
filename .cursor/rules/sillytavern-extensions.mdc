@@ -1,0 +1,23 @@
+ ---
+ alwaysApply: true
+ ---
+ ### SillyTavern Extensions — Canonical Docs & Research
+ 
+ Use this rule whenever developing or modifying this extension. Always consult the official SillyTavern docs first, then escalate to the DeepWiki MCP server for anything not covered.
+ 
+ - **Primary docs to consult first**
+   - Extensions guide: /docs/extensions.md
+     - Lifecycle, manifest/registration, settings, UI, permissions, events, asset bundling, and integration patterns.
+   - Context assembly: /docs/getContext.md
+     - How SillyTavern builds prompts/messages, what `getContext()` provides, persona/character/world info composition, and message range rules.
+ 
+ - **How to apply in this workspace**
+   - When a question arises about extension behavior or APIs, read the two docs above before making changes.
+   - Align naming and flows with the docs (e.g., `buildPrompt`, connection profiles, message range handling, world info selection).
+ 
+ - **If the docs are insufficient → use DeepWiki MCP (repo: `SillyTavern/SillyTavern`)**
+   - Ask targeted questions via the DeepWiki MCP server, preferring answers from the `docs/` directory.
+   - Cite sources (file paths/sections) in responses and coding decisions.
+   - Example prompts:
+     - "Where is extension lifecycle documented beyond `docs/extensions.md`?"
+     - "How does `buildPrompt` treat `message range: last|first|range`? Point to code/docs."

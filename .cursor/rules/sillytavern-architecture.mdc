@@ -1,0 +1,129 @@
+---
+alwaysApply: true
+description: Comprehensive architecture, structure, and execution flow of the SillyTavern Character Creator Chat extension.
+---
+
+### SillyTavern Character Creator Chat — Architecture & Flow
+
+Use this guide to understand how the extension is structured and how data/UI flow through it. It covers entry points, settings, generation, UI wiring, and chat. File links are clickable to jump to source.
+
+- **Manifest & Build Outputs**
+  - Manifest: [manifest.json](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/manifest.json)
+    - Loads JS: `dist/index.js`, CSS: `dist/style.css`.
+  - Source: `src/`; built assets emitted to `dist/` via webpack and sass.
+  - Project metadata/scripts: [package.json](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/package.json)
+
+- **Primary Entry Point**
+  - [src/index.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/index.ts)
+    - On import, registers a small Handlebars helper and orchestrates lifecycle.
+    - `importCheck()` guards SillyTavern APIs; shows error if unavailable.
+    - `initializeSettings()` loads/migrates settings; then `main()` executes.
+    - `main()` calls:
+      - `handleSettingsUI()`: renders settings UI and wires settings editors/presets.
+      - `handlePopupUI()`: injects extension icon(s), opens popup, binds UI (selectors, toggles, generation buttons, import/export, save/override character, save as world info entry, etc.).
+      - `initializeChat()`: sets up the chat tab lazy-loader and chat session.
+
+- **Settings & Defaults**
+  - [src/settings.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/settings.ts)
+    - Exports `settingsManager` using `ExtensionSettingsManager` from `sillytavern-utils-lib`.
+    - Keys: `extensionName`, `VERSION`, `FORMAT_VERSION`, `DEFAULT_SETTINGS`, `SYSTEM_PROMPT_KEYS`, `DEFAULT_PROMPT_CONTENTS`.
+    - Settings include:
+      - `profileId`, max context selection (`profile|sampler|custom`) with `maxContextValue`.
+      - `maxResponseToken`, `outputFormat` (`xml|json|none`).
+      - `contextToSend`: toggles for ST description, character card, world info, existing fields, persona; message range type (`none|all|first|last|range`) with parameters; `dontSendOtherGreetings` behavior for alternate greetings.
+      - `prompts`: consolidated system prompts and labels; editable via UI.
+      - `promptPresets`: user-editable freeform instruction presets.
+      - `mainContextTemplatePresets`: ordered blocks assembling final messages (e.g., `chatHistory`, `creatorChatHistory`, `stDescription`, `charDefinitions`, `lorebookDefinitions`, `existingFieldDefinitions`, `personaDescription`, `outputFormatInstructions`, `taskDescription`) with roles.
+      - `showSaveAsWorldInfoEntry`: toggles the World Info entry feature visibility.
+    - `initializeSettings()` defines migrations (`F_1.4` → `F_1.7`) to keep prior installs compatible.
+  - Default prompt/template constants: [src/constants.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/constants.ts)
+
+- **Generation Core**
+  - [src/generate.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/generate.ts)
+    - `globalContext = SillyTavern.getContext()` for ST integration.
+    - Character fields definitions:
+      - `CHARACTER_FIELDS`: `name, description, personality, scenario, first_mes, mes_example`.
+      - `CHARACTER_LABELS`: human-readable labels.
+    - `Session` shape stores selected characters, selected lorebooks, `fields`, `draftFields`, `lastLoadedCharacterId`, and `creatorChatHistory`.
+    - `runCharacterFieldGeneration(params)` performs end-to-end prompt build and request:
+      1. Validates connection profile and resolves selected API from ST.
+      2. Builds `templateData` with `char`, `user`, `persona`, `targetField`, compiled `userInstructions` (from user prompt), `fieldSpecificInstructions` (from per-field draft/core prompt), and `activeFormatInstructions` based on selected format.
+      3. Adds selected character definitions and selected lorebook entries (filtered by `selected*` and disabled flags).
+      4. Adds current field values into `templateData.fields` partitioned into `core`, `alternate_greetings`, and `draft`, respecting the `dontSendOtherGreetings` logic when generating an alternate greeting.
+      5. Builds `messages` by iterating `mainContextList` (from settings presets):
+         - `chatHistory`: uses ST `buildPrompt` and applies message range rules.
+         - `creatorChatHistory`: injects messages stored in session.
+         - Other blocks: compiles Handlebars content with `templateData`, substitutes ST macros, and pushes with configured role.
+      6. If `continueFrom` is provided, appends it as an `assistant` message via `getPrefilled()` to prompt continuation.
+      7. Sends request via `ConnectionManagerRequestService.sendRequest(profileId, messages, maxResponseToken)`.
+      8. Parses the model output via [src/parsers.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/parsers.ts) based on `outputFormat`:
+         - `xml`: extracts from `<response>`
+         - `json`: extracts from `{ "response": "..." }`
+         - `none`: raw text
+      9. Returns the extracted string to the caller.
+
+- **Popup/UI Flow** (from `handlePopupUI()` in [src/index.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/index.ts))
+  - Injects icon(s) and opens popup rendering `templates/popup` via `globalContext.renderExtensionTemplateAsync('third-party/${extensionName}', 'templates/popup')`.
+  - Binds left column controls:
+    - Connection Profile selector (via ST utilities) and persists `profileId`.
+    - Context toggles: ST description, persona, character card, world info, existing fields; `dontSendOtherGreetings` for alternate greetings behavior.
+    - Message options: type (`none|all|first|last|range`) and parameters; hidden if no active chat/ids.
+    - Max context type (`profile|sampler|custom`) and custom token limit; max response tokens; output format select.
+    - Generic prompt preset editor (`promptPresets`).
+  - Binds right column core fields UI (rows/labels/prompt enablement), per `CHARACTER_FIELDS` and `fieldConfigs`:
+    - Each field has value textarea, optional per-field prompt, Generate, Continue, Compare, Clear.
+  - Alternate greetings sub-UI:
+    - Add/Delete/Switch tabs for greetings; per-greeting Generate/Continue/Compare/Clear.
+    - Respects `dontSendOtherGreetings` when assembling context.
+  - Draft fields:
+    - Add custom fields (name sanitized via `convertToVariableName`), Generate/Continue, Clear/Delete, Import/Export JSON.
+  - Load/Reset/Save actions:
+    - Load character dropdown: safely overwrites current editors (with confirm if non-empty), loads `alternate_greetings` into session.
+    - Reset core/draft fields and alternate greetings; clear chat; reset character selector.
+    - Save as New and Override existing character using ST utilities; optional Save as World Info entry by compiling a template and applying to selected lorebook.
+  - Generation button handler `handleFieldGeneration()`:
+    - Validates profile; resolves ST profile; builds `BuildPromptOptions` including message range; loads world info entries for selected worlds; projects session into typed fields; prunes prompts based on `contextToSend`; calls `runCharacterFieldGeneration()` and writes the result back into the target textarea, firing `change` to persist in `localStorage`.
+
+- **Chat Tab**
+  - [src/chat.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/chat.ts)
+    - `initializeChat()` loads/creates a `ChatSession` in `localStorage`, sets a tab click listener to lazy-load chat UI.
+    - `loadChatUI()` renders `templates/chat`, binds handlers, and renders history.
+    - `sendMessage()` builds a chat-specific prompt, calls `runCharacterFieldGeneration()` with `targetField='chat_response'`, and appends assistant reply.
+    - Supports inline image attachments (as `image_url` parts) and updates both the chat session and `creatorChatHistory` in the main session for reuse in generation contexts.
+    - Provides export/clear and edit/delete message flows and keeps the main session’s `creatorChatHistory` in sync.
+
+- **Parsers**
+  - [src/parsers.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/parsers.ts)
+    - `parseResponse()` normalizes code blocks, optionally concatenates with `previousContent` for continuation, and extracts based on selected format.
+    - `getPrefilled()` returns an incomplete wrapper for `xml|json` to prompt model continuation.
+
+- **Key External Utilities (from sillytavern-utils-lib)**
+  - UI builders: `buildFancyDropdown`, `buildPresetSelect`, `buildSortableList`.
+  - ST integration: `buildPrompt`, `ConnectionManagerRequestService`, `applyWorldInfoEntry`, `createCharacter`, `saveCharacter`.
+  - Configs: `selected_group`, `this_chid`, `world_names`, `st_echo`, `name1`.
+
+- **Data Models**
+  - Character fields: `CHARACTER_FIELDS` and `CHARACTER_LABELS` in [src/generate.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/generate.ts).
+  - Session shape: `Session` in the same file (selected characters/worlds, fields, draft fields, last loaded id, creator chat history).
+  - Settings shape: `ExtensionSettings` in [src/settings.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/settings.ts).
+
+- **Adding a New Core Field (How-To)**
+  1. Update `CHARACTER_FIELDS` and `CHARACTER_LABELS` in [src/generate.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/generate.ts).
+  2. In [src/index.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/index.ts), extend `fieldConfigs` and ensure UI cloning/binding covers the field (generate/continue/compare/clear + per-field prompt if needed).
+  3. If needed, adjust parser or prompt templates in [src/constants.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/constants.ts) and `DEFAULT_PROMPT_CONTENTS` in [src/settings.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/settings.ts).
+  4. Verify persistence in the `Session` object and import/export paths.
+
+- **End-to-End Flow Summary**
+  1. Extension loads → `initializeSettings()` → `main()` → settings UI + popup UI wired → chat initialized.
+  2. User opens popup → configures context/options → selects characters/lorebooks → edits prompts/presets.
+  3. User clicks Generate/Continue for a field → prompt assembled (system blocks + optional chat/context) → request sent via selected profile → response parsed → field updated and persisted.
+  4. Optional: Save as new/override character; create a World Info entry; use Chat tab for brainstorming (feeds `creatorChatHistory`).
+
+- **Templates & Styling**
+  - HTML templates under `templates/` rendered via `globalContext.renderExtensionTemplateAsync('third-party/${extensionName}', ...)`.
+  - Compiled CSS: `dist/style.css` from `src/styles` via sass.
+
+- **Related Docs**
+  - SillyTavern extensions: https://github.com/SillyTavern/SillyTavern/blob/dev/docs/extensions.md
+  - Context assembly: https://github.com/SillyTavern/SillyTavern/blob/dev/docs/getContext.md
+
