@@ -242,31 +242,6 @@ async function generateChatResponse(userMessage: string, inlineImageUrl?: string
                 break;
         }
 
-        // Prepare prompt settings (remove unused prompts for chat)
-        const promptSettings = structuredClone(settings.prompts);
-        if (!settings.contextToSend.stDescription) {
-            // @ts-ignore
-            delete promptSettings.stDescription;
-        }
-        if (!settings.contextToSend.charCard || activeSession.selectedCharacterIndexes.length === 0) {
-            // @ts-ignore
-            delete promptSettings.charDefinitions;
-        }
-        if (!settings.contextToSend.worldInfo || activeSession.selectedWorldNames.length === 0) {
-            // @ts-ignore
-            delete promptSettings.lorebookDefinitions;
-        }
-        if (!settings.contextToSend.existingFields) {
-            // @ts-ignore
-            delete promptSettings.existingFieldDefinitions;
-        }
-        if (!settings.contextToSend.persona) {
-            // @ts-ignore
-            delete promptSettings.personaDescription;
-        }
-        // @ts-ignore - since this is only for saving as world info entry
-        delete promptSettings.worldInfoCharDefinition;
-
         // Use the main character field generation system with chat-specific instructions
         // Include the current user message in the prompt
         const chatPrompt = `This is a chat request. The user just said: "${userMessage}". Please respond naturally as an AI assistant helping with character creation to continue the conversation.`;
@@ -278,14 +253,7 @@ async function generateChatResponse(userMessage: string, inlineImageUrl?: string
             session: activeSession,
             allCharacters: context.characters,
             entriesGroupByWorldName,
-            promptSettings,
             formatDescription: { content: formatDescription },
-            mainContextList: settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].prompts
-                .filter((p) => p.enabled)
-                .map((p) => ({
-                    promptName: p.promptName,
-                    role: p.role,
-                })),
             includeUserMacro: settings.contextToSend.persona,
             maxResponseToken: settings.maxResponseToken,
             targetField: 'chat_response',

@@ -22,6 +22,7 @@ import {
 } from './generate.js';
 import { Session, CharacterField } from './types.js';
 import { SessionService } from './services/sessionService.js';
+import { CharacterController } from './controllers/characterController.js';
 
 import {
   extensionName,
@@ -1212,21 +1213,8 @@ async function handlePopupUI() {
 
       // --- Export/Import Draft Fields Logic ---
       exportDraftFieldsButton?.addEventListener('click', () => {
-        const exportData = {
-          draftFields: activeSession.draftFields,
-          timestamp: new Date().toISOString(),
-          version: VERSION,
-        };
-
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `draft-fields-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const characterController = CharacterController.getInstance();
+        characterController.exportDraftFields();
       });
 
       importDraftFieldsButton?.addEventListener('click', async () => {
@@ -1239,26 +1227,9 @@ async function handlePopupUI() {
           if (!file) return;
 
           try {
-            const text = await file.text();
-            const importData = JSON.parse(text);
-
-            if (!importData.draftFields || typeof importData.draftFields !== 'object') {
-              throw new Error('Invalid draft fields data');
-            }
-
-            let confirm = true;
-            if (Object.keys(activeSession.draftFields).length > 0) {
-              confirm = await globalContext.Popup.show.confirm(
-                'Import Draft Fields',
-                'This will replace all existing draft fields. Continue?',
-              );
-            }
-
-            if (confirm) {
-              sessionService.updateSession({ draftFields: importData.draftFields });
-              renderAllDraftFields();
-              st_echo('success', 'Draft fields imported successfully');
-            }
+            const characterController = CharacterController.getInstance();
+            await characterController.importDraftFields(file);
+            renderAllDraftFields();
           } catch (error: any) {
             st_echo('error', `Failed to import draft fields: ${error.message}`);
           }
@@ -1341,65 +1312,40 @@ async function handlePopupUI() {
             const selectedId = newValues[0];
             if (selectedId.length === 0) return;
 
-            const character = context.characters[parseInt(selectedId)];
-            if (!character) {
-              st_echo('warning', 'Selected character not found.');
-              return;
-            }
+            try {
+              const characterController = CharacterController.getInstance();
+              await characterController.loadCharacter(selectedId);
 
-            // Load core character fields
-            CHARACTER_FIELDS.forEach((fieldName) => {
-              const elements = coreFieldElements[fieldName];
-              if (elements) {
-                // Check if elements exist (not null)
-                const textarea = elements.textarea;
-                const promptTextarea = elements.promptTextarea;
-                const fieldData = activeSession.fields[fieldName];
+              // Update UI with loaded data
+              const updatedSession = sessionService.getSession();
+              
+              // Update core field textareas
+              CHARACTER_FIELDS.forEach((fieldName) => {
+                const elements = coreFieldElements[fieldName];
+                if (elements) {
+                  const textarea = elements.textarea;
+                  const promptTextarea = elements.promptTextarea;
+                  const fieldData = updatedSession.fields[fieldName];
 
-                // @ts-ignore - Accessing character fields directly
-                const charValue = character[fieldName] ?? character.data?.[fieldName] ?? ''; // Check data field too
-                if (textarea.value !== charValue) {
-                  textarea.value = charValue;
-                  if (fieldData) fieldData.value = charValue; // Update session
+                  if (textarea && fieldData) {
+                    textarea.value = fieldData.value || '';
+                  }
+                  if (promptTextarea && fieldData) {
+                    promptTextarea.value = fieldData.prompt || '';
+                  }
                 }
-
-                // Clear specific prompts when loading a character
-                if (promptTextarea && fieldData?.prompt) {
-                  promptTextarea.value = '';
-                  fieldData.prompt = ''; // Update session
-                }
-              }
-            });
-
-            // Clear existing alternate greetings fields before loading new ones
-            getAlternateGreetingFieldNames().forEach((fieldName) => {
-              delete activeSession.fields[fieldName];
-            });
-
-            // Load alternate greetings from character data (assuming it's string[])
-            const greetingsData = character.data?.alternate_greetings ?? [];
-            if (Array.isArray(greetingsData)) {
-              greetingsData.forEach((greeting: string, index: number) => {
-                const number = index + 1;
-                const fieldName = `alternate_greetings_${number}`;
-                activeSession.fields[fieldName] = {
-                  value: greeting,
-                  prompt: '', // Initialize prompt as empty
-                  label: `Alternate Greeting ${number}`,
-                };
               });
-            }
 
-            // Re-render the alternate greetings UI
-            const agFieldElement = coreFieldsContainer?.querySelector(
-              '.alternate-greetings-field',
-            ) as HTMLElement | null;
-            if (agFieldElement) {
-              renderAlternateGreetingsUI(agFieldElement);
+              // Re-render the alternate greetings UI
+              const agFieldElement = coreFieldsContainer?.querySelector(
+                '.alternate-greetings-field',
+              ) as HTMLElement | null;
+              if (agFieldElement) {
+                renderAlternateGreetingsUI(agFieldElement);
+              }
+            } catch (error: any) {
+              st_echo('error', `Failed to load character: ${error.message}`);
             }
-
-            // Store the selected character's avatar in session
-            sessionService.updateSession({ lastLoadedCharacterId: character.avatar });
           },
         });
       }
@@ -1411,42 +1357,37 @@ async function handlePopupUI() {
           'Are you sure? This will reset core fields and remove draft fields. This cannot be undone.',
         );
         if (confirm) {
-          // Reset core fields
-          CHARACTER_FIELDS.forEach((fieldName) => {
-            const elements = coreFieldElements[fieldName];
-            if (elements) {
-              // Check if elements exist (not null)
-              const fieldData = activeSession.fields[fieldName];
-              if (elements.textarea) {
-                elements.textarea.value = '';
-                if (fieldData) fieldData.value = ''; // Update session
+          try {
+            const characterController = CharacterController.getInstance();
+            await characterController.resetFields();
+
+            // Update UI with reset data
+            CHARACTER_FIELDS.forEach((fieldName) => {
+              const elements = coreFieldElements[fieldName];
+              if (elements) {
+                if (elements.textarea) {
+                  elements.textarea.value = '';
+                }
+                if (elements.promptTextarea) {
+                  elements.promptTextarea.value = '';
+                }
               }
-              if (elements.promptTextarea) {
-                elements.promptTextarea.value = '';
-                if (fieldData) fieldData.prompt = ''; // Update session
-              }
+            });
+
+            // Re-render the alternate greetings UI (will show empty state)
+            const agFieldElement = coreFieldsContainer?.querySelector('.alternate-greetings-field') as HTMLElement | null;
+            if (agFieldElement) {
+              renderAlternateGreetingsUI(agFieldElement);
             }
-          });
 
-          // Remove all alternate greeting fields
-          getAlternateGreetingFieldNames().forEach((fieldName) => {
-            delete activeSession.fields[fieldName];
-          });
+            // Reset load character selector
+            loadCharDropdown!.deselectAll();
 
-          // Re-render the alternate greetings UI (will show empty state)
-          const agFieldElement = coreFieldsContainer?.querySelector('.alternate-greetings-field') as HTMLElement | null;
-          if (agFieldElement) {
-            renderAlternateGreetingsUI(agFieldElement);
+            // Re-render draft fields (will be empty)
+            renderAllDraftFields();
+          } catch (error: any) {
+            st_echo('error', `Failed to reset fields: ${error.message}`);
           }
-
-          // Reset load character selector
-          loadCharDropdown!.deselectAll();
-
-          sessionService.updateSession({ 
-            draftFields: {},
-            creatorChatHistory: { messages: [] }
-          });
-          renderAllDraftFields();
         }
       });
 
@@ -1454,42 +1395,12 @@ async function handlePopupUI() {
         '#charCreator_saveAsNewCharacter',
       ) as HTMLButtonElement;
       saveAsNewCharacterButton.addEventListener('click', async () => {
-        if (!activeSession.fields.name.value) {
-          st_echo('warning', 'Please enter a name for the new character.');
-          return;
-        }
         const confirm = await globalContext.Popup.show.confirm('Save as New Character', `Are you sure?`);
         if (!confirm) return;
-        // Gather alternate greetings
-        const alternate_greetings = getAlternateGreetingFieldNames()
-          .map((fieldName) => activeSession.fields[fieldName]?.value ?? '')
-          .filter((value) => value.trim() !== ''); // Filter out empty greetings
-
-        const data: FullExportData = {
-          name: activeSession.fields.name.value,
-          description: activeSession.fields.description.value,
-          personality: activeSession.fields.personality.value,
-          scenario: activeSession.fields.scenario.value,
-          first_mes: activeSession.fields.first_mes.value,
-          mes_example: activeSession.fields.mes_example.value,
-          data: {
-            name: activeSession.fields.name.value,
-            description: activeSession.fields.description.value,
-            personality: activeSession.fields.personality.value,
-            scenario: activeSession.fields.scenario.value,
-            first_mes: activeSession.fields.first_mes.value,
-            mes_example: activeSession.fields.mes_example.value,
-            tags: [],
-            avatar: 'none',
-            alternate_greetings, // Assign the gathered array
-          },
-          avatar: 'none',
-          tags: [],
-          spec: 'chara_card_v3',
-          spec_version: '3.0',
-        };
+        
         try {
-          await createCharacter(data, true);
+          const characterController = CharacterController.getInstance();
+          await characterController.saveCharacter({ asNew: true });
         } catch (error: any) {
           st_echo('error', `Failed to create character: ${error.message}`);
         }
@@ -1511,46 +1422,15 @@ async function handlePopupUI() {
           return;
         }
 
-        if (!activeSession.fields.name.value) {
-          st_echo('warning', 'Please enter a name for the character.');
-          return;
-        }
-
         const confirm = await globalContext.Popup.show.confirm(
           'Override Character',
           `Are you sure you want to override "${characterToOverride.name}"? This cannot be undone.`,
         );
         if (!confirm) return;
 
-        // Gather alternate greetings
-        const alternate_greetings = getAlternateGreetingFieldNames()
-          .map((fieldName) => activeSession.fields[fieldName]?.value ?? '')
-          .filter((value) => value.trim() !== ''); // Filter out empty greetings
-
-        // Construct the Character object for saving
-        const data: Character = {
-          ...characterToOverride, // Keep existing properties
-          name: activeSession.fields.name.value,
-          description: activeSession.fields.description.value,
-          personality: activeSession.fields.personality.value,
-          scenario: activeSession.fields.scenario.value,
-          first_mes: activeSession.fields.first_mes.value,
-          mes_example: activeSession.fields.mes_example.value,
-          data: {
-            ...characterToOverride.data, // Keep existing data properties
-            name: activeSession.fields.name.value,
-            description: activeSession.fields.description.value,
-            personality: activeSession.fields.personality.value,
-            scenario: activeSession.fields.scenario.value,
-            first_mes: activeSession.fields.first_mes.value,
-            mes_example: activeSession.fields.mes_example.value,
-            alternate_greetings, // Assign the gathered array
-          },
-        };
-
         try {
-          await saveCharacter(data, true);
-          st_echo('success', `Character "${data.name}" overridden successfully!`);
+          const characterController = CharacterController.getInstance();
+          await characterController.saveCharacter({ asNew: false, selectedCharacterId: selectedId });
         } catch (error: any) {
           st_echo('error', `Failed to override character: ${error.message}`);
         }
@@ -1573,57 +1453,11 @@ async function handlePopupUI() {
           async onBeforeSelection(_currentValues, proposedValues) {
             if (proposedValues.length === 0) return false;
 
-            // Gather alternate greetings for the template
-            const alternate_greetings_template = getAlternateGreetingFieldNames()
-              .map((fieldName) => activeSession.fields[fieldName]?.value ?? '')
-              .filter((value) => value.trim() !== '');
-
-            // Construct a partial character object for the template
-            const characterForTemplate = {
-              name: activeSession.fields.name.value,
-              description: activeSession.fields.description.value,
-              first_mes: activeSession.fields.first_mes.value,
-              scenario: activeSession.fields.scenario.value,
-              personality: activeSession.fields.personality.value,
-              mes_example: activeSession.fields.mes_example.value,
-              alternate_greetings: alternate_greetings_template,
-            };
-
-            if (!characterForTemplate.name) {
-              st_echo('warning', 'Please enter a name for the character.');
-              close();
-              return false;
-            }
-
-            let content: string = '';
-            try {
-              const template = Handlebars.compile(settings.prompts.charDefinitions.content, {
-                noEscape: true,
-              });
-              content = template({ character: characterForTemplate }); // Pass the constructed object
-            } catch (error: any) {
-              console.error(`Failed to compile character definition prompt: ${error.message}`);
-              st_echo('error', `Failed to compile character definition prompt: ${error.message}`);
-              close();
-              return false;
-            }
-
             const selectedWorldName = proposedValues[0];
-            const wiEntry: WIEntry = {
-              uid: -1, // not necessary
-              key: [activeSession.fields.name.value],
-              content,
-              comment: activeSession.fields.name.value,
-              disable: false,
-              keysecondary: [],
-            };
+            
             try {
-              await applyWorldInfoEntry({
-                entry: wiEntry,
-                selectedWorldName: selectedWorldName,
-                operation: 'add',
-              });
-              st_echo('success', 'Entry added');
+              const characterController = CharacterController.getInstance();
+              await characterController.saveAsWorldInfo({ selectedWorldName });
             } catch (error: any) {
               st_echo('error', `Failed to create world info entry: ${error.message}`);
             }
@@ -1635,7 +1469,7 @@ async function handlePopupUI() {
       }
 
       // --- Generation Logic ---
-      // Shared function to handle field generation
+      // Shared function to handle field generation using CharacterController
       async function handleFieldGeneration(options: {
         targetField: string;
         button: HTMLButtonElement;
@@ -1651,173 +1485,21 @@ async function handlePopupUI() {
         button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
         try {
-          // @ts-ignore
           const userPrompt = (popupContainer.querySelector('#charCreator_prompt') as HTMLTextAreaElement).value;
+          const characterController = CharacterController.getInstance();
 
-          if (!settings.profileId) {
-            st_echo('warning', 'Please select a connection profile.');
-            return;
-          }
-
-          const profile = context.extensionSettings.connectionManager?.profiles?.find(
-            (p: any) => p.id === settings.profileId,
-          );
-          if (!profile) {
-            st_echo('warning', 'Connection profile not found.');
-            return;
-          }
-
-          const buildPromptOptions: BuildPromptOptions = {
-            presetName: profile?.preset,
-            contextName: profile?.context,
-            instructName: profile?.instruct,
-            targetCharacterId: this_chid,
-            ignoreCharacterFields: true,
-            ignoreWorldInfo: true,
-            ignoreAuthorNote: true,
-            maxContext:
-              settings.maxContextType === 'custom'
-                ? settings.maxContextValue
-                : settings.maxContextType === 'profile'
-                  ? 'preset'
-                  : 'active',
-            includeNames: !!selected_group,
-          };
-
-          // Add message range options
-          const msgContext = settings.contextToSend.messages;
-          switch (msgContext.type) {
-            case 'none':
-              buildPromptOptions.messageIndexesBetween = { start: -1, end: -1 };
-              break;
-            case 'first':
-              buildPromptOptions.messageIndexesBetween = { start: 0, end: msgContext.first ?? 10 };
-              break;
-            case 'last':
-              const chatLength = globalContext.chat?.length ?? 0;
-              const lastCount = msgContext.last ?? 10;
-              buildPromptOptions.messageIndexesBetween = {
-                end: Math.max(0, chatLength - 1),
-                start: Math.max(0, chatLength - lastCount),
-              };
-              break;
-            case 'range':
-              buildPromptOptions.messageIndexesBetween = {
-                start: msgContext.range?.start ?? 0,
-                end: msgContext.range?.end ?? 10,
-              };
-              break;
-            case 'all':
-            default:
-              break;
-          }
-          if (this_chid === undefined && !selected_group) {
-            buildPromptOptions.messageIndexesBetween = { start: -1, end: -1 };
-          }
-
-          let formatDescription = '';
-          switch (settings.outputFormat) {
-            case 'xml':
-              formatDescription = settings.prompts.xmlFormat.content;
-              break;
-            case 'json':
-              formatDescription = settings.prompts.jsonFormat.content;
-              break;
-            case 'none':
-              formatDescription = settings.prompts.noneFormat.content;
-              break;
-          }
-
-          const entriesGroupByWorldName: Record<string, WIEntry[]> = {};
-          // Use Promise.all for parallel loading
-          await Promise.all(
-            world_names
-              .filter((name: string) => activeSession.selectedWorldNames.includes(name))
-              .map(async (name: string) => {
-                const worldInfo = await globalContext.loadWorldInfo(name);
-                if (worldInfo) {
-                  entriesGroupByWorldName[name] = Object.values(worldInfo.entries);
-                }
-              }),
-          );
-
-          // For draft fields, prepare session with specific prompt
-          let sessionForGeneration: Session;
-
-          // For draft fields, just use the current activeSession directly
-          // No need to merge with localStorage since we don't need chat history for field generation
-          
-          // Create a new fields object with proper typing
-          // @ts-ignore
-          const typedFields: Record<CharacterFieldName, CharacterField> = {};
-          for (const field of CHARACTER_FIELDS) {
-            typedFields[field] = {
-              prompt: activeSession.fields[field].prompt,
-              value: activeSession.fields[field].value,
-              label: CHARACTER_LABELS[field],
-            };
-          }
-          // Add alternate greetings fields
-          getAlternateGreetingFieldNames().forEach((fieldName) => {
-            typedFields[fieldName as CharacterFieldName] = {
-              prompt: activeSession.fields[fieldName].prompt,
-              value: activeSession.fields[fieldName].value,
-              label: fieldName,
-            };
-          });
-
-          sessionForGeneration = {
-            ...activeSession,
-            fields: typedFields,
-          };
-
-          const promptSettings = structuredClone(settings.prompts);
-          if (!settings.contextToSend.stDescription) {
-            // @ts-ignore
-            delete promptSettings.stDescription;
-          }
-          if (!settings.contextToSend.charCard || activeSession.selectedCharacterIndexes.length === 0) {
-            // @ts-ignore
-            delete promptSettings.charDefinitions;
-          }
-          if (!settings.contextToSend.worldInfo || activeSession.selectedWorldNames.length === 0) {
-            // @ts-ignore
-            delete promptSettings.lorebookDefinitions;
-          }
-          if (!settings.contextToSend.existingFields) {
-            // @ts-ignore
-            delete promptSettings.existingFieldDefinitions;
-          }
-          if (!settings.contextToSend.persona) {
-            // @ts-ignore
-            delete promptSettings.personaDescription;
-          }
-          // @ts-ignore - since this is only for saving as world info entry
-          delete promptSettings.worldInfoCharDefinition;
-
-          const generatedContent = await runCharacterFieldGeneration({
-            profileId: settings.profileId,
-            userPrompt: userPrompt,
-            buildPromptOptions: buildPromptOptions,
-            continueFrom,
-            session: sessionForGeneration,
-            allCharacters: context.characters,
-            entriesGroupByWorldName: entriesGroupByWorldName,
-            promptSettings,
-            formatDescription: {
-              content: formatDescription,
-            },
-            mainContextList: settings.mainContextTemplatePresets[settings.mainContextTemplatePreset].prompts
-              .filter((p) => p.enabled)
-              .map((p) => ({
-                promptName: p.promptName,
-                role: p.role,
-              })),
-            includeUserMacro: settings.contextToSend.persona,
-            maxResponseToken: settings.maxResponseToken,
-            targetField: targetField,
-            outputFormat: settings.outputFormat,
-          });
+          const generatedContent = continueFrom
+            ? await characterController.continueField({
+                targetField,
+                userPrompt,
+                continueFrom,
+                isDraft,
+              })
+            : await characterController.generateField({
+                targetField,
+                userPrompt,
+                isDraft,
+              });
 
           textarea.value = generatedContent;
           textarea.dispatchEvent(new Event('change'));
