@@ -1,21 +1,15 @@
 import {
-  applyWorldInfoEntry,
   buildFancyDropdown,
   buildPresetSelect,
-  BuildPromptOptions,
   buildSortableList,
-  createCharacter,
-  saveCharacter,
   DropdownItem,
   SortableListItemData,
 } from 'sillytavern-utils-lib';
-import { diffWords } from 'diff';
 import { selected_group, st_echo, this_chid, world_names } from 'sillytavern-utils-lib/config';
 import { POPUP_TYPE } from 'sillytavern-utils-lib/types/popup';
 
 import {
   globalContext,
-  runCharacterFieldGeneration,
   CharacterFieldName,
   CHARACTER_FIELDS,
   CHARACTER_LABELS,
@@ -23,6 +17,7 @@ import {
 import { Session, CharacterField } from './types.js';
 import { SessionService } from './services/sessionService.js';
 import { CharacterController } from './controllers/characterController.js';
+import { UIHelpers } from './utils/uiHelpers.js';
 
 import {
   extensionName,
@@ -39,8 +34,7 @@ import {
   SystemPromptKey,
   initializeSettings,
 } from './settings.js';
-import { Character, FullExportData } from 'sillytavern-utils-lib/types';
-import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
+// Removed unused imports - now handled by controllers
 import { initializeChat, loadChatUI } from './chat.js';
 
 import * as Handlebars from 'handlebars';
@@ -972,7 +966,7 @@ async function handlePopupUI() {
           const contentDiv = contentArea.querySelectorAll('.alternate-greeting-tab-content')[activeTabIndex];
           const textarea = contentDiv?.querySelector('.alternate-greeting-textarea') as HTMLTextAreaElement | null;
 
-          handleFieldGeneration({
+          UIHelpers.handleFieldGeneration({
             targetField: targetFieldName,
             button: newGenerateButton,
             textarea: textarea!,
@@ -992,7 +986,7 @@ async function handlePopupUI() {
             return;
           }
 
-          handleFieldGeneration({
+          UIHelpers.handleFieldGeneration({
             targetField: targetFieldName,
             button: newContinueButton,
             textarea: textarea!,
@@ -1029,7 +1023,7 @@ async function handlePopupUI() {
           const characterGreetings = character.data?.alternate_greetings ?? [];
           const characterValue = characterGreetings[activeTabIndex] ?? '';
 
-          handleFieldComparison(targetFieldName, textarea.value, characterValue);
+          UIHelpers.handleFieldComparison(targetFieldName, textarea.value, characterValue);
         });
 
         // Clear Button Listener
@@ -1144,15 +1138,11 @@ async function handlePopupUI() {
         generateButton.dataset.field = fieldName;
 
         clearButton.dataset.draftFieldName = fieldName;
-        // Event listener for value change
-        textarea.addEventListener('change', () => {
-          sessionService.updateDraftField(fieldName, { value: textarea.value });
-        });
+        // Event listener for value change using UIHelpers
+        textarea.addEventListener('change', UIHelpers.createTextChangeHandler(fieldName, true));
 
-        // Event listener for prompt change
-        promptTextarea.addEventListener('change', () => {
-          sessionService.updateDraftField(fieldName, { prompt: promptTextarea.value });
-        });
+        // Event listener for prompt change using UIHelpers
+        promptTextarea.addEventListener('change', UIHelpers.createPromptChangeHandler(fieldName, true));
 
         // Event listener for clear button (Draft Fields)
         clearButton.addEventListener('click', () => {
@@ -1162,7 +1152,7 @@ async function handlePopupUI() {
 
         // Event listener for delete button
         deleteButton.addEventListener('click', async () => {
-          const confirm = await globalContext.Popup.show.confirm(
+          const confirm = await UIHelpers.showConfirmation(
             'Delete Draft Field',
             `Are you sure you want to delete the draft field "${fieldData.label}"? This cannot be undone.`,
           );
@@ -1174,7 +1164,7 @@ async function handlePopupUI() {
 
         // Generate button click handler
         generateButton.addEventListener('click', () => {
-          handleFieldGeneration({
+          UIHelpers.handleFieldGeneration({
             targetField: fieldName,
             button: generateButton,
             textarea,
@@ -1188,7 +1178,7 @@ async function handlePopupUI() {
             st_echo('warning', 'No content to continue from');
             return;
           }
-          handleFieldGeneration({
+          UIHelpers.handleFieldGeneration({
             targetField: fieldName,
             button: continueButton,
             textarea,
@@ -1241,7 +1231,7 @@ async function handlePopupUI() {
       // --- Add Draft Field Button Logic ---
       if (addDraftFieldButton) {
         addDraftFieldButton.addEventListener('click', async () => {
-          const fieldNameInput = await globalContext.Popup.show.input('Enter Draft Field Name', '');
+          const fieldNameInput = await UIHelpers.showInput('Enter Draft Field Name', '');
           if (!fieldNameInput || !fieldNameInput.trim()) {
             return;
           }
@@ -1352,7 +1342,7 @@ async function handlePopupUI() {
 
       const resetButton = popupContainer.querySelector('#charCreator_reset') as HTMLButtonElement;
       resetButton.addEventListener('click', async () => {
-        const confirm = await globalContext.Popup.show.confirm(
+        const confirm = await UIHelpers.showConfirmation(
           'Reset Fields',
           'Are you sure? This will reset core fields and remove draft fields. This cannot be undone.',
         );
@@ -1395,7 +1385,7 @@ async function handlePopupUI() {
         '#charCreator_saveAsNewCharacter',
       ) as HTMLButtonElement;
       saveAsNewCharacterButton.addEventListener('click', async () => {
-        const confirm = await globalContext.Popup.show.confirm('Save as New Character', `Are you sure?`);
+        const confirm = await UIHelpers.showConfirmation('Save as New Character', `Are you sure?`);
         if (!confirm) return;
         
         try {
@@ -1422,7 +1412,7 @@ async function handlePopupUI() {
           return;
         }
 
-        const confirm = await globalContext.Popup.show.confirm(
+        const confirm = await UIHelpers.showConfirmation(
           'Override Character',
           `Are you sure you want to override "${characterToOverride.name}"? This cannot be undone.`,
         );
@@ -1468,122 +1458,9 @@ async function handlePopupUI() {
         });
       }
 
-      // --- Generation Logic ---
-      // Shared function to handle field generation using CharacterController
-      async function handleFieldGeneration(options: {
-        targetField: string;
-        button: HTMLButtonElement;
-        textarea: HTMLTextAreaElement;
-        isDraft?: boolean;
-        continueFrom?: string;
-      }) {
-        const { targetField, button, textarea, isDraft = false, continueFrom } = options;
+      // --- Field Generation Logic is now handled by UIHelpers ---
 
-        // Disable button and show loading state
-        button.disabled = true;
-        const originalIcon = button.innerHTML;
-        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-        try {
-          const userPrompt = (popupContainer.querySelector('#charCreator_prompt') as HTMLTextAreaElement).value;
-          const characterController = CharacterController.getInstance();
-
-          const generatedContent = continueFrom
-            ? await characterController.continueField({
-                targetField,
-                userPrompt,
-                continueFrom,
-                isDraft,
-              })
-            : await characterController.generateField({
-                targetField,
-                userPrompt,
-                isDraft,
-              });
-
-          textarea.value = generatedContent;
-          textarea.dispatchEvent(new Event('change'));
-        } catch (error: any) {
-          console.error(`Error generating field ${targetField}:`, error);
-          st_echo('error', `Failed to generate ${targetField}: ${error.message || error}`);
-        } finally {
-          button.disabled = false;
-          button.innerHTML = originalIcon;
-        }
-      }
-
-      // Function to handle field comparison
-      const handleFieldComparison = async (fieldName: string, currentValue: string, characterValue: string) => {
-        const mainDiv = document.createElement('div');
-        mainDiv.classList.add('compare-popup');
-
-        const compareTitle = document.createElement('h3');
-        compareTitle.textContent = `Compare ${CHARACTER_LABELS[fieldName as CharacterFieldName] || fieldName}`;
-        mainDiv.appendChild(compareTitle);
-
-        const compareContainer = document.createElement('div');
-        compareContainer.style.display = 'flex';
-        compareContainer.style.gap = '1rem';
-        compareContainer.style.marginTop = '1rem';
-
-        // Create containers for original and new content
-        const originalContent = document.createElement('div');
-        originalContent.style.flex = '1';
-        const newContent = document.createElement('div');
-        newContent.style.flex = '1';
-
-        const originalTitle = document.createElement('h4');
-        originalTitle.textContent = 'Character Content';
-        const newTitle = document.createElement('h4');
-        newTitle.textContent = 'Current Content';
-
-        originalContent.appendChild(originalTitle);
-        newContent.appendChild(newTitle);
-
-        // Show word-level diff
-        const diff = diffWords(characterValue, currentValue);
-        let originalHtml = '';
-        let newHtml = '';
-
-        diff.forEach((part) => {
-          const color = part.added ? 'green' : part.removed ? 'red' : 'grey';
-          const spanStyle = `color: ${color}; ${part.added || part.removed ? 'background-color: rgba(0,0,0,0.1);' : ''}`;
-
-          if (!part.added) {
-            originalHtml += `<span style="${spanStyle}">${part.value}</span>`;
-          }
-          if (!part.removed) {
-            newHtml += `<span style="${spanStyle}">${part.value}</span>`;
-          }
-        });
-
-        const originalContentText = document.createElement('div');
-        originalContentText.classList.add('content');
-        originalContentText.innerHTML = originalHtml;
-        originalContentText.style.whiteSpace = 'pre-wrap';
-        originalContentText.style.fontFamily = 'monospace';
-        originalContentText.style.padding = '1rem';
-        originalContentText.style.border = '1px solid #ccc';
-
-        const newContentText = document.createElement('div');
-        newContentText.classList.add('content');
-        newContentText.innerHTML = newHtml;
-        newContentText.style.whiteSpace = 'pre-wrap';
-        newContentText.style.fontFamily = 'monospace';
-        newContentText.style.padding = '1rem';
-        newContentText.style.border = '1px solid #ccc';
-
-        originalContent.appendChild(originalContentText);
-        newContent.appendChild(newContentText);
-
-        compareContainer.appendChild(originalContent);
-        compareContainer.appendChild(newContent);
-        mainDiv.appendChild(compareContainer);
-
-        await globalContext.callGenericPopup(mainDiv, POPUP_TYPE.DISPLAY, undefined, {
-          wide: true,
-        });
-      };
+      // --- Field Comparison Logic is now handled by UIHelpers ---
 
       // Setup core field event listeners
       Object.entries(coreFieldElements).forEach(([fieldName, { textarea, button, continueButton, promptTextarea }]) => {
@@ -1591,18 +1468,16 @@ async function handlePopupUI() {
           .closest('.field-container')
           ?.querySelector('.compare-field-button') as HTMLButtonElement;
 
-        // Compare button click handler
+        // Compare button click handler using UIHelpers
         if (compareButton) {
-          compareButton.addEventListener('click', () => {
-            handleFieldComparison(
-              fieldName,
-              textarea.value,
-              // @ts-ignore - Accessing character fields directly
-              context.characters[parseInt(loadCharDropdown?.getValues()?.[0])]?.[fieldName] ??
-              // @ts-ignore - Accessing character fields directly
-              context.characters[parseInt(loadCharDropdown?.getValues()?.[0])]?.data?.[fieldName] ??
-              '',
-            );
+          compareButton.addEventListener('click', async () => {
+            const selectedCharIndex = loadCharDropdown?.getValues()?.[0];
+            const characterValue = selectedCharIndex
+              ? context.characters[parseInt(selectedCharIndex)]?.[fieldName as CharacterFieldName] ??
+                context.characters[parseInt(selectedCharIndex)]?.data?.[fieldName] ?? ''
+              : '';
+            
+            await UIHelpers.handleFieldComparison(fieldName, textarea.value, characterValue);
           });
         }
 
@@ -1613,32 +1488,32 @@ async function handlePopupUI() {
               st_echo('warning', 'No content to continue from');
               return;
             }
-            handleFieldGeneration({
+            UIHelpers.handleFieldGeneration({
               targetField: fieldName as CharacterFieldName,
               button: continueButton,
               textarea,
               continueFrom: textarea.value,
+              isDraft: false,
             });
           });
         }
         if (button) {
           button.addEventListener('click', () => {
-            handleFieldGeneration({
+            UIHelpers.handleFieldGeneration({
               targetField: fieldName as CharacterFieldName,
               button,
               textarea,
+              isDraft: false,
             });
           });
 
-          textarea.addEventListener('change', () => {
-            const field = fieldName as CharacterFieldName;
-            sessionService.updateField(field, { value: textarea.value });
-          });
+          // Text area change listener using UIHelpers
+          textarea.addEventListener('change', UIHelpers.createTextChangeHandler(fieldName, false));
 
-          promptTextarea?.addEventListener('change', () => {
-            const field = fieldName as CharacterFieldName;
-            sessionService.updateField(field, { prompt: promptTextarea.value });
-          });
+          // Prompt text area change listener using UIHelpers
+          if (promptTextarea) {
+            promptTextarea.addEventListener('change', UIHelpers.createPromptChangeHandler(fieldName, false));
+          }
         }
       });
     });
