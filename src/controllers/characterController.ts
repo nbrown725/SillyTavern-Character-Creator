@@ -5,6 +5,7 @@ import { selected_group, this_chid, world_names, st_echo } from 'sillytavern-uti
 
 import { runCharacterFieldGeneration, globalContext, CharacterFieldName, CHARACTER_LABELS } from '../generate.js';
 import { SessionService } from '../services/sessionService.js';
+import { ImageService } from '../services/imageService.js';
 import { settingsManager, ExtensionSettings } from '../settings.js';
 import { Session, CharacterField } from '../types.js';
 
@@ -15,6 +16,7 @@ export interface GenerateFieldOptions {
   userPrompt: string;
   continueFrom?: string;
   isDraft?: boolean;
+  imageUrl?: string;
 }
 
 export interface CompareFieldOptions {
@@ -35,6 +37,7 @@ export interface SaveAsWorldInfoOptions {
 export class CharacterController {
   private static instance: CharacterController;
   private sessionService: SessionService;
+  private imageService: ImageService;
 
   static getInstance(): CharacterController {
     if (!CharacterController.instance) {
@@ -45,13 +48,14 @@ export class CharacterController {
 
   private constructor() {
     this.sessionService = SessionService.getInstance();
+    this.imageService = ImageService.getInstance();
   }
 
   /**
    * Generate content for a specific field
    */
   async generateField(options: GenerateFieldOptions): Promise<string> {
-    const { targetField, userPrompt, continueFrom, isDraft = false } = options;
+    const { targetField, userPrompt, continueFrom, isDraft = false, imageUrl } = options;
     const settings = settingsManager.getSettings();
     const session = this.sessionService.getSession();
 
@@ -102,6 +106,9 @@ export class CharacterController {
       maxResponseToken: settings.maxResponseToken,
       targetField,
       outputFormat: settings.outputFormat,
+      additionalContentPartsForCurrentUserMessage: imageUrl
+        ? [this.imageService.createImageContentPart(imageUrl)]
+        : undefined,
     });
 
     // Update the field in session
@@ -415,6 +422,20 @@ export class CharacterController {
     } catch (error: any) {
       throw new Error(`Failed to import draft fields: ${error.message}`);
     }
+  }
+
+  /**
+   * Process image file for field generation (consistent with chat)
+   */
+  async processImageFile(file: File): Promise<string> {
+    return this.imageService.processImageFile(file);
+  }
+
+  /**
+   * Create image preview HTML (consistent with chat)
+   */
+  createImagePreviewHtml(imageUrl: string): string {
+    return this.imageService.createImagePreviewHtml(imageUrl);
   }
 
   // Private helper methods

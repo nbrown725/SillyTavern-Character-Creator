@@ -1,15 +1,14 @@
-import { globalContext, runCharacterFieldGeneration, CHARACTER_FIELDS, CHARACTER_LABELS } from "./generate.js";
-import { settingsManager } from "./settings.js";
-import { ExtractedData } from 'sillytavern-utils-lib/types';
-import { selected_group, this_chid, world_names } from 'sillytavern-utils-lib/config';
+import { globalContext } from "./generate.js";
 import { SessionService } from './services/sessionService.js';
-import { ChatMessage, ContentPart } from './types.js';
+import { ChatController } from './controllers/chatController.js';
+import { ChatMessage } from './types.js';
 
 // Remove duplicate ChatMessage interface - using the one from types.ts
 // Remove ChatSession - using unified session storage
 
-// Use the unified session service
+// Use the unified session service and chat controller
 const sessionService = SessionService.getInstance();
+const chatController = ChatController.getInstance();
 let chatContainer: JQuery | null = null;
 let pendingInlineImageDataUrl: string | null = null;
 
@@ -99,23 +98,21 @@ function bindChatEvents(): void {
         const input = document.getElementById('chat_image_input') as HTMLInputElement | null;
         input?.click();
     });
-    $('#chat_image_input').on('change', function (e) {
+    $('#chat_image_input').on('change', async function (e) {
         const input = e.target as HTMLInputElement;
         const file = input.files?.[0];
         if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file.');
-            input.value = '';
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = function () {
-            pendingInlineImageDataUrl = reader.result as string;
+        
+        try {
+            pendingInlineImageDataUrl = await chatController.processImageFile(file);
             const previewEl = $('#chat_image_preview');
             previewEl.attr('src', pendingInlineImageDataUrl || '');
             previewEl.closest('.chat-image-preview-container').show();
-        };
-        reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Failed to process image:', error);
+            alert(error instanceof Error ? error.message : 'Failed to process image file.');
+            input.value = '';
+        }
     });
     $('#clear_image').on('click', function () {
         pendingInlineImageDataUrl = null;
@@ -137,28 +134,22 @@ async function sendMessage(): Promise<void> {
     sendButton.prop('disabled', true);
     input.prop('disabled', true);
 
-    const userMessage: ChatMessage = {
-        id: generateId(),
-        role: 'user',
-        content: message,
-        inlineImageUrl: pendingInlineImageDataUrl ?? undefined,
-        timestamp: Date.now()
-    };
-
-    addMessageToChat(userMessage);
-    input.val('');
-
     try {
-        const response = await generateChatResponse(message, pendingInlineImageDataUrl ?? undefined);
+        const { userMessage, aiMessage } = await chatController.sendMessage({
+            content: message,
+            imageUrl: pendingInlineImageDataUrl ?? undefined,
+        });
 
-        const assistantMessage: ChatMessage = {
-            id: generateId(),
-            role: 'assistant',
-            content: response,
-            timestamp: Date.now()
-        };
+        // Render both messages
+        renderMessage(userMessage);
+        renderMessage(aiMessage);
+        scrollToBottom();
 
-        addMessageToChat(assistantMessage);
+        // Clear input
+        input.val('');
+        
+        // Reset pending image
+        resetImagePreview();
     } catch (error) {
         console.error('Failed to generate response:', error);
         alert('Failed to generate response. Please check your connection settings.');
@@ -166,135 +157,20 @@ async function sendMessage(): Promise<void> {
         sendButton.prop('disabled', false);
         input.prop('disabled', false);
         input.focus();
-        // Reset pending image after send
-        pendingInlineImageDataUrl = null;
-        const fileInput = document.getElementById('chat_image_input') as HTMLInputElement | null;
-        if (fileInput) fileInput.value = '';
-        const previewEl = $('#chat_image_preview');
-        previewEl.attr('src', '');
-        previewEl.closest('.chat-image-preview-container').hide();
     }
 }
 
-async function generateChatResponse(userMessage: string, inlineImageUrl?: string): Promise<string> {
-    const settings = settingsManager.getSettings();
-
-    if (!settings.profileId) {
-        throw new Error('No connection profile selected');
-    }
-
-    try {
-        const activeSession = sessionService.getSession();
-
-        // Don't add the user message to chat history yet - do it after generation
-        // to avoid duplicate messages in the request
-
-        // Get context from SillyTavern
-        const context = SillyTavern.getContext();
-
-        // Prepare world info entries
-        const entriesGroupByWorldName: Record<string, any[]> = {};
-        await Promise.all(
-            world_names
-                .filter((name: string) => activeSession.selectedWorldNames.includes(name))
-                .map(async (name: string) => {
-                    const worldInfo = await globalContext.loadWorldInfo(name);
-                    if (worldInfo) {
-                        entriesGroupByWorldName[name] = Object.values(worldInfo.entries);
-                    }
-                }),
-        );
-
-        // Build prompt options
-        const profile = context.extensionSettings.connectionManager?.profiles?.find(
-            (p: any) => p.id === settings.profileId,
-        );
-        
-        const buildPromptOptions = {
-            presetName: profile?.preset,
-            contextName: profile?.context,
-            instructName: profile?.instruct,
-            targetCharacterId: this_chid,
-            ignoreCharacterFields: true,
-            ignoreWorldInfo: true,
-            ignoreAuthorNote: true,
-            maxContext:
-                settings.maxContextType === 'custom'
-                    ? settings.maxContextValue
-                    : settings.maxContextType === 'profile'
-                        ? 'preset' as const
-                        : 'active' as const,
-            includeNames: !!selected_group,
-            messageIndexesBetween: { start: -1, end: -1 }, // No chat messages for chat generation
-        };
-
-        // Format description based on settings
-        let formatDescription = '';
-        switch (settings.outputFormat) {
-            case 'xml':
-                formatDescription = settings.prompts.xmlFormat.content;
-                break;
-            case 'json':
-                formatDescription = settings.prompts.jsonFormat.content;
-                break;
-            case 'none':
-                formatDescription = settings.prompts.noneFormat.content;
-                break;
-        }
-
-        // Use the main character field generation system with chat-specific instructions
-        // Include the current user message in the prompt
-        const chatPrompt = `This is a chat request. The user just said: "${userMessage}". Please respond naturally as an AI assistant helping with character creation to continue the conversation.`;
-        
-        const response = await runCharacterFieldGeneration({
-            profileId: settings.profileId,
-            userPrompt: chatPrompt,
-            buildPromptOptions,
-            session: activeSession,
-            allCharacters: context.characters,
-            entriesGroupByWorldName,
-            formatDescription: { content: formatDescription },
-            includeUserMacro: settings.contextToSend.persona,
-            maxResponseToken: settings.maxResponseToken,
-            targetField: 'chat_response',
-            outputFormat: settings.outputFormat,
-            // Attach image to current user message for providers supporting inline parts
-            additionalContentPartsForCurrentUserMessage: inlineImageUrl
-                ? [{ type: 'image_url', image_url: { url: inlineImageUrl, detail: 'auto' } } as ContentPart]
-                : undefined,
-        });
-
-        // Now add both the user message and assistant response to chat history
-        const userChatMessage = sessionService.convertUIMessageToChatMessage(
-            { content: userMessage, imageUrl: inlineImageUrl },
-            'user'
-        );
-        sessionService.addChatMessage(userChatMessage);
-        
-        sessionService.addChatMessage({
-            role: 'assistant',
-            content: response
-        });
-
-        return response || '';
-    } catch (error) {
-        console.error('Chat API error:', error);
-        throw error;
-    }
+function resetImagePreview(): void {
+    pendingInlineImageDataUrl = null;
+    const fileInput = document.getElementById('chat_image_input') as HTMLInputElement | null;
+    if (fileInput) fileInput.value = '';
+    const previewEl = $('#chat_image_preview');
+    previewEl.attr('src', '');
+    previewEl.closest('.chat-image-preview-container').hide();
 }
 
 
-function addMessageToChat(message: ChatMessage): void {
-    // Convert UI message to creator chat message and add to session
-    const creatorMessage = sessionService.convertUIMessageToChatMessage(
-        { content: message.content, imageUrl: message.inlineImageUrl },
-        message.role
-    );
-    sessionService.addChatMessage(creatorMessage);
-    
-    renderMessage(message);
-    scrollToBottom();
-}
+// Removed addMessageToChat - messages are now handled by ChatController
 
 function renderMessage(message: ChatMessage): void {
     const template = $('#chat_message_template')[0] as HTMLTemplateElement;
@@ -308,8 +184,8 @@ function renderMessage(message: ChatMessage): void {
     const container = messageElement.find('.message-content');
     container.html(formatMessageContent(message.content));
     if (message.inlineImageUrl) {
-        const img = $(`<div class="inline-image" style="margin-top:6px;"><img src="${message.inlineImageUrl}" alt="inline image" style="max-width: 200px; max-height: 200px; border:1px solid var(--SmartThemeBorderColor); border-radius:4px;"/></div>`);
-        container.append(img);
+        const imageHtml = chatController.createImagePreviewHtml(message.inlineImageUrl);
+        container.append($(imageHtml));
     }
 
     $('#chat_messages').append(messageElement);
@@ -317,7 +193,7 @@ function renderMessage(message: ChatMessage): void {
 
 function renderChatHistory(): void {
     $('#chat_messages').empty();
-    const messages = sessionService.getChatMessagesForUI();
+    const messages = chatController.getChatMessages();
     messages.forEach(message => renderMessage(message));
     scrollToBottom();
 }
@@ -329,34 +205,39 @@ function scrollToBottom(): void {
     }
 }
 
-function clearChat(): void {
+async function clearChat(): Promise<void> {
     if (!confirm('Are you sure you want to clear the chat history?')) return;
 
-    sessionService.clearChatHistory();
-    $('#chat_messages').empty();
+    try {
+        await chatController.clearChat();
+        $('#chat_messages').empty();
+    } catch (error) {
+        console.error('Failed to clear chat:', error);
+        alert('Failed to clear chat history.');
+    }
 }
 
 function exportChat(): void {
-    const messages = sessionService.getChatMessagesForUI();
-    if (messages.length === 0) {
-        alert('No chat history to export');
-        return;
+    try {
+        const exportData = chatController.exportChat();
+        if (exportData.messages.length === 0) {
+            alert('No chat history to export');
+            return;
+        }
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `character-chat-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Failed to export chat:', error);
+        alert('Failed to export chat history.');
     }
-
-    const exportData = {
-        messages: messages,
-        exportedAt: new Date().toISOString()
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `character-chat-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
 
 function formatTimestamp(timestamp: number): string {
@@ -364,12 +245,10 @@ function formatTimestamp(timestamp: number): string {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function generateId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
+// Removed generateId - now handled by ChatController
 
 function startEditMessage(messageId: string): void {
-    const messages = sessionService.getChatMessagesForUI();
+    const messages = chatController.getChatMessages();
     const message = messages.find(m => m.id === messageId);
     if (!message) return;
     
@@ -388,7 +267,7 @@ function startEditMessage(messageId: string): void {
     editTextarea.css('height', editTextarea[0].scrollHeight + 'px');
 }
 
-function saveEditMessage(messageId: string): void {
+async function saveEditMessage(messageId: string): Promise<void> {
     const messageElement = $(`.chat-message[data-message-id="${messageId}"]`);
     const editContainer = messageElement.find('.message-edit-container');
     const editTextarea = editContainer.find('.message-edit-textarea');
@@ -399,22 +278,22 @@ function saveEditMessage(messageId: string): void {
         return;
     }
     
-    // Find message index by ID
-    const messages = sessionService.getChatMessagesForUI();
-    const messageIndex = messages.findIndex(m => m.id === messageId);
-    if (messageIndex !== -1) {
-        // Update message in session - convert back to creator chat message format
-        const updatedMessage = sessionService.convertUIMessageToChatMessage(
-            { content: newContent },
-            messages[messageIndex].role
-        );
-        sessionService.replaceChatMessage(messageIndex, updatedMessage);
-        
-        // Update UI
-        const contentElement = messageElement.find('.message-content');
-        contentElement.html(formatMessageContent(newContent));
-        contentElement.show();
-        editContainer.hide();
+    try {
+        // Find message index by ID
+        const messages = chatController.getChatMessages();
+        const messageIndex = messages.findIndex(m => m.id === messageId);
+        if (messageIndex !== -1) {
+            await chatController.editMessage({ messageIndex, newContent });
+            
+            // Update UI
+            const contentElement = messageElement.find('.message-content');
+            contentElement.html(formatMessageContent(newContent));
+            contentElement.show();
+            editContainer.hide();
+        }
+    } catch (error) {
+        console.error('Failed to edit message:', error);
+        alert('Failed to edit message.');
     }
 }
 
@@ -427,20 +306,25 @@ function cancelEditMessage(messageId: string): void {
     editContainer.hide();
 }
 
-function deleteMessage(messageId: string): void {
+async function deleteMessage(messageId: string): Promise<void> {
     if (!confirm('Are you sure you want to delete this message?')) return;
     
-    // Find message index by ID
-    const messages = sessionService.getChatMessagesForUI();
-    const messageIndex = messages.findIndex(m => m.id === messageId);
-    if (messageIndex !== -1) {
-        sessionService.deleteChatMessage(messageIndex);
-        
-        // Remove from UI with animation
-        const messageElement = $(`.chat-message[data-message-id="${messageId}"]`);
-        messageElement.fadeOut(200, function() {
-            $(this).remove();
-        });
+    try {
+        // Find message index by ID
+        const messages = chatController.getChatMessages();
+        const messageIndex = messages.findIndex(m => m.id === messageId);
+        if (messageIndex !== -1) {
+            await chatController.deleteMessage(messageIndex);
+            
+            // Remove from UI with animation
+            const messageElement = $(`.chat-message[data-message-id="${messageId}"]`);
+            messageElement.fadeOut(200, function() {
+                $(this).remove();
+            });
+        }
+    } catch (error) {
+        console.error('Failed to delete message:', error);
+        alert('Failed to delete message.');
     }
 }
 
@@ -480,11 +364,11 @@ function formatMessageContent(content: string): string {
 // Removed updateCreatorChatHistory - no longer needed with unified session
 
 export function getChatMessagesForUI(): ChatMessage[] {
-    return sessionService.getChatMessagesForUI();
+    return chatController.getChatMessages();
 }
 
 export function formatChatAsContext(): string {
-    const messages = sessionService.getChatMessagesForUI();
+    const messages = chatController.getChatMessages();
     if (messages.length === 0) return '';
 
     const header = "=== Character Brainstorming Chat ===\n\n";
