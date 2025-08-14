@@ -1340,6 +1340,69 @@ async function handlePopupUI() {
         });
       }
 
+      // Load currently selected character in SillyTavern
+      const loadCurrentButton = popupContainer.querySelector('#charCreator_loadCurrentCharacter') as HTMLButtonElement | null;
+      if (loadCurrentButton) {
+        loadCurrentButton.addEventListener('click', async () => {
+          try {
+            const currentId = this_chid;
+            if (currentId === undefined || currentId === null) {
+              st_echo('warning', 'No character is currently selected in SillyTavern.');
+              return;
+            }
+
+            // Confirm overwrite if fields are not empty
+            const allFieldEmpty = CHARACTER_FIELDS.every((fieldName) => {
+              const textarea = coreFieldElements[fieldName]?.textarea;
+              return textarea && textarea.value.trim() === '';
+            });
+            if (!allFieldEmpty) {
+              const confirm = await globalContext.Popup.show.confirm(
+                'Load Current Character',
+                'Are you sure you want to overwrite existing data? This cannot be undone.',
+              );
+              if (!confirm) return;
+            }
+
+            const characterController = CharacterController.getInstance();
+            await characterController.loadCharacter(String(currentId));
+
+            // Reflect loaded character in the dropdown (if present)
+            if (loadCharDropdown) {
+              // buildFancyDropdown API doesn't expose setValues here; deselect and simulate selection via close/open not available.
+              // We will just leave the dropdown as-is; loading logic already updated fields.
+            }
+
+            // Update UI with loaded data
+            const updatedSession = sessionService.getSession();
+            CHARACTER_FIELDS.forEach((fieldName) => {
+              const elements = coreFieldElements[fieldName];
+              if (elements) {
+                const textarea = elements.textarea;
+                const promptTextarea = elements.promptTextarea;
+                const fieldData = updatedSession.fields[fieldName];
+                if (textarea && fieldData) {
+                  textarea.value = fieldData.value || '';
+                }
+                if (promptTextarea && fieldData) {
+                  promptTextarea.value = fieldData.prompt || '';
+                }
+              }
+            });
+
+            // Re-render the alternate greetings UI
+            const agFieldElement = coreFieldsContainer?.querySelector(
+              '.alternate-greetings-field',
+            ) as HTMLElement | null;
+            if (agFieldElement) {
+              renderAlternateGreetingsUI(agFieldElement);
+            }
+          } catch (error: any) {
+            st_echo('error', `Failed to load current character: ${error.message}`);
+          }
+        });
+      }
+
       const resetButton = popupContainer.querySelector('#charCreator_reset') as HTMLButtonElement;
       resetButton.addEventListener('click', async () => {
         const confirm = await UIHelpers.showConfirmation(

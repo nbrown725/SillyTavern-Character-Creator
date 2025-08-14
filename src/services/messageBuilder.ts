@@ -2,8 +2,8 @@ import { buildPrompt, BuildPromptOptions, Message } from 'sillytavern-utils-lib'
 import { Character } from 'sillytavern-utils-lib/types';
 import { WIEntry } from 'sillytavern-utils-lib/types/world-info';
 import { name1, st_echo } from 'sillytavern-utils-lib/config';
-import { ExtensionSettings, settingsManager } from '../settings.js';
-import { Session, ContentPart } from '../types.js';
+import { ExtensionSettings, MessageRole, OutputFormat, settingsManager } from '../settings.js';
+import { Session, ContentPart, CreatorChatMessage } from '../types.js';
 import { CHARACTER_FIELDS, CHARACTER_LABELS, CharacterFieldName, globalContext } from '../generate.js';
 import { getPrefilled } from '../parsers.js';
 
@@ -52,7 +52,7 @@ export class MessageBuilder {
     } = options;
 
     const settings = settingsManager.getSettings();
-
+    
     // Build template data for Handlebars compilation
     const templateData = this.buildTemplateData({
       targetField,
@@ -74,7 +74,7 @@ export class MessageBuilder {
 
     // Build messages array
     const messages: Message[] = [];
-
+    
     for (const mainContext of mainContextList) {
       if (mainContext.promptName === 'chatHistory') {
         // Special handling for ST chat history
@@ -85,9 +85,7 @@ export class MessageBuilder {
             st_echo('warning', warning);
           }
         }
-        // Filter out system/auxiliary messages injected by connection presets; keep only user/assistant turns
-        const chatOnly = (prompt.result || []).filter((m: any) => m.role === 'user' || m.role === 'assistant');
-        messages.push(...chatOnly);
+        messages.push(...prompt.result);
         continue;
       }
 
@@ -97,21 +95,8 @@ export class MessageBuilder {
         // Import SessionService dynamically to avoid circular imports
         const { SessionService } = await import('./sessionService.js');
         const sessionService = SessionService.getInstance();
-        const convertedMessages: Message[] = chatMessages.map((msg, index) => {
+        const convertedMessages: Message[] = chatMessages.map(msg => {
           const restoredMsg = sessionService.getMessageForAIContext(msg);
-          // If bottom image parts are going to be appended separately, avoid duplicating them from the last user message
-          if (
-            additionalContentPartsForCurrentUserMessage &&
-            Array.isArray(restoredMsg.content) &&
-            restoredMsg.role === 'user' &&
-            index === chatMessages.length - 1
-          ) {
-            const textOnlyParts = (restoredMsg.content as any[]).filter((part) => part?.type === 'text');
-            return {
-              role: restoredMsg.role,
-              content: textOnlyParts.length > 0 ? (textOnlyParts as any) : '',
-            } as Message;
-          }
           return {
             role: restoredMsg.role,
             content: restoredMsg.content, // Can be string or ContentPart[] - SillyTavern handles both
@@ -140,40 +125,18 @@ export class MessageBuilder {
       };
 
       // Apply ST macro substitution with placeholder protection
-      message.content = (message.content as string).replaceAll('{{user}}', '[[[crec_veryUniqueUserPlaceHolder]]]');
-      message.content = (message.content as string).replaceAll('{{char}}', '[[[crec_veryUniqueCharPlaceHolder]]]');
-      message.content = globalContext.substituteParams(message.content as string);
-      message.content = (message.content as string).replaceAll('[[[crec_veryUniqueUserPlaceHolder]]]', '{{user}}');
-      message.content = (message.content as string).replaceAll('[[[crec_veryUniqueCharPlaceHolder]]]', '{{char}}');
-
+      message.content = message.content.replaceAll('{{user}}', '[[[crec_veryUniqueUserPlaceHolder]]]');
+      message.content = message.content.replaceAll('{{char}}', '[[[crec_veryUniqueCharPlaceHolder]]]');
+      message.content = globalContext.substituteParams(message.content);
+      message.content = message.content.replaceAll('[[[crec_veryUniqueUserPlaceHolder]]]', '{{user}}');
+      message.content = message.content.replaceAll('[[[crec_veryUniqueCharPlaceHolder]]]', '{{char}}');
+      
       if (message.content) {
         messages.push(message);
       }
     }
 
-    // Reorder and consolidate system prompts ahead of chat turns for provider compatibility
-    if (messages.length > 0) {
-      const systemMessages: Message[] = [];
-      const nonSystemMessages: Message[] = [];
-      for (const m of messages) {
-        if (m.role === 'system') systemMessages.push(m);
-        else nonSystemMessages.push(m);
-      }
-      if (systemMessages.length > 1) {
-        // Concatenate multiple system prompts into a single system instruction (plain text only)
-        const combined = systemMessages
-          .map((m) => (typeof m.content === 'string' ? (m.content as string) : ''))
-          .filter(Boolean)
-          .join('\n\n');
-        messages.length = 0;
-        messages.push({ role: 'system', content: combined } as Message, ...nonSystemMessages);
-      } else if (systemMessages.length === 1) {
-        messages.length = 0;
-        messages.push(systemMessages[0], ...nonSystemMessages);
-      }
-    }
-
-    // Add additional content parts if provided (e.g., inline images appended at the bottom)
+    // Add additional content parts if provided (e.g., inline images)
     if (additionalContentPartsForCurrentUserMessage && additionalContentPartsForCurrentUserMessage.length > 0) {
       messages.push({
         role: 'user',
@@ -181,7 +144,7 @@ export class MessageBuilder {
       } as Message);
     }
 
-    // Add continuation prefill if provided (assistant prefill goes last)
+    // Add continuation prefill if provided
     if (continueFrom) {
       const outputFormat = settings.outputFormat;
       messages.push({
@@ -206,7 +169,7 @@ export class MessageBuilder {
     includeUserMacro: boolean;
   }): Record<string, any> {
     const { targetField, userPrompt, session, allCharacters, entriesGroupByWorldName, formatDescription, includeUserMacro } = options;
-
+    
     const templateData: Record<string, any> = {};
 
     // Basic template variables
@@ -214,10 +177,10 @@ export class MessageBuilder {
     templateData['user'] = includeUserMacro && name1 ? name1 : '{{user}}';
     templateData['persona'] = '{{persona}}'; // ST will replace this
     templateData['targetField'] = targetField;
-
+    
     // Compile user instructions
     templateData['userInstructions'] = Handlebars.compile(userPrompt.trim(), { noEscape: true })(templateData);
-
+    
     // Get field-specific instructions
     const fieldPrompt = session.draftFields[targetField]?.prompt ?? session.fields[targetField as CharacterFieldName]?.prompt ?? '';
     templateData['fieldSpecificInstructions'] = Handlebars.compile(fieldPrompt, { noEscape: true })({
@@ -225,7 +188,7 @@ export class MessageBuilder {
       char: targetField === 'mes_example' ? '{{char}}' : templateData.char,
       user: targetField === 'mes_example' ? '{{user}}' : templateData.user,
     });
-
+    
     // Active format instructions
     templateData['activeFormatInstructions'] = Handlebars.compile(formatDescription.content || '', { noEscape: true })(templateData);
 
@@ -242,10 +205,10 @@ export class MessageBuilder {
 
     // Add creator chat history
     if (!session.creatorChatHistory) {
-      session.creatorChatHistory = { messages: [] } as any;
+      session.creatorChatHistory = { messages: [] };
     }
     if (!Array.isArray(session.creatorChatHistory.messages)) {
-      (session.creatorChatHistory as any).messages = [];
+      session.creatorChatHistory.messages = [];
     }
     templateData['creatorChatHistory'] = session.creatorChatHistory.messages;
 
@@ -331,7 +294,7 @@ export class MessageBuilder {
    */
   private getFilteredPromptSettings(settings: ExtensionSettings, session: Session): typeof settings.prompts {
     const promptSettings = structuredClone(settings.prompts);
-
+    
     if (!settings.contextToSend.stDescription) {
       // @ts-ignore
       delete promptSettings.stDescription;
@@ -363,13 +326,13 @@ export class MessageBuilder {
    */
   private getSelectedApi(buildPromptOptions: BuildPromptOptions): any {
     // We need to find the profile based on the preset name used in buildPromptOptions
-    const profile = (globalContext as any).extensionSettings.connectionManager?.profiles?.find(
+    const profile = globalContext.extensionSettings.connectionManager?.profiles?.find(
       (p: any) => p.preset === buildPromptOptions.presetName
     );
     if (!profile) {
       throw new Error('Connection profile not found for preset: ' + buildPromptOptions.presetName);
     }
-    const selectedApi = profile.api ? (globalContext as any).CONNECT_API_MAP[profile.api].selected : undefined;
+    const selectedApi = profile.api ? globalContext.CONNECT_API_MAP[profile.api].selected : undefined;
     if (!selectedApi) {
       throw new Error(`Could not determine API for profile "${profile.name}".`);
     }
