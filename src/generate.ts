@@ -106,6 +106,7 @@ export async function runCharacterFieldGeneration({
     profileId,
     messages,
     maxResponseToken,
+    { includePreset: false },
   )) as ExtractedData;
 
   // console.log("Received raw content:", response.content); // For debugging

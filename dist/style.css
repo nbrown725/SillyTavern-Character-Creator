@@ -460,6 +460,9 @@
 .chat-message .message-header .message-actions .message-action-btn.delete-message-btn:hover {
   color: var(--warning);
 }
+.chat-message .message-header .message-actions .message-action-btn.regen-message-btn:hover {
+  color: var(--success);
+}
 .chat-message:hover .message-actions {
   opacity: 1;
 }

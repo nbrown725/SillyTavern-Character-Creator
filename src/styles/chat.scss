@@ -110,6 +110,12 @@
                         color: var(--warning);
                     }
                 }
+
+                &.regen-message-btn {
+                    &:hover {
+                        color: var(--success);
+                    }
+                }
             }
         }
     }

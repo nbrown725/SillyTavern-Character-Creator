@@ -60,7 +60,7 @@ function bindChatEvents(): void {
     $('#clear_chat').on('click', clearChat);
     $('#export_chat').on('click', exportChat);
     
-    // Bind edit/delete message events using event delegation
+    // Bind edit/delete/regen message events using event delegation
     $('#chat_messages').on('click', '.edit-message-btn', function() {
         const messageElement = $(this).closest('.chat-message');
         const messageId = messageElement.attr('data-message-id');
@@ -74,6 +74,14 @@ function bindChatEvents(): void {
         const messageId = messageElement.attr('data-message-id');
         if (messageId) {
             deleteMessage(messageId);
+        }
+    });
+    
+    $('#chat_messages').on('click', '.regen-message-btn', function() {
+        const messageElement = $(this).closest('.chat-message');
+        const messageId = messageElement.attr('data-message-id');
+        if (messageId) {
+            regenerateMessage(messageId);
         }
     });
     
@@ -188,6 +196,12 @@ function renderMessage(message: ChatMessage): void {
     messageElement.addClass(`message-${message.role}`);
     messageElement.find('.message-role').text(message.role === 'user' ? 'You' : 'AI');
     messageElement.find('.message-timestamp').text(formatTimestamp(message.timestamp));
+    
+    // Show regenerate button only for AI messages
+    if (message.role === 'assistant') {
+        messageElement.find('.regen-message-btn').css('display', 'inline-block');
+    }
+    
     const container = messageElement.find('.message-content');
     container.html(formatMessageContent(message.content));
     if (message.inlineImageUrl) {
@@ -331,6 +345,69 @@ async function deleteMessage(messageId: string): Promise<void> {
     } catch (error) {
         console.error('Failed to delete message:', error);
         alert('Failed to delete message.');
+    }
+}
+
+async function regenerateMessage(messageId: string): Promise<void> {
+    const messageIndex = parseInt(messageId, 10);
+    const messages = chatController.getChatMessages();
+    
+    if (messageIndex < 0 || messageIndex >= messages.length) {
+        console.error('Invalid message index for regeneration');
+        return;
+    }
+    
+    const messageToRegen = messages[messageIndex];
+    
+    // Only allow regeneration of AI messages
+    if (messageToRegen.role !== 'assistant') {
+        alert('Only AI messages can be regenerated');
+        return;
+    }
+    
+    // Find the previous user message to use as context for regeneration
+    let previousUserMessage = '';
+    let previousUserImageUrl: string | undefined;
+    for (let i = messageIndex - 1; i >= 0; i--) {
+        if (messages[i].role === 'user') {
+            previousUserMessage = messages[i].content;
+            previousUserImageUrl = messages[i].inlineImageUrl;
+            break;
+        }
+    }
+    
+    if (!previousUserMessage) {
+        alert('Cannot regenerate: no user message found for context');
+        return;
+    }
+    
+    // Show loading state
+    const messageElement = $(`.chat-message[data-message-id="${messageId}"]`);
+    const regenButton = messageElement.find('.regen-message-btn');
+    const originalHtml = regenButton.html();
+    regenButton.prop('disabled', true);
+    regenButton.html('<i class="fa-solid fa-spinner fa-spin"></i>');
+    
+    try {
+        // Regenerate the message (this will delete both messages and re-send fresh)
+        await chatController.regenerateMessage(messageIndex, {
+            content: previousUserMessage,
+            imageUrl: previousUserImageUrl
+        });
+        
+        // Since regeneration deletes both messages and adds fresh ones,
+        // we need to completely re-render the chat history
+        renderChatHistory();
+        
+    } catch (error) {
+        console.error('Failed to regenerate message:', error);
+        alert('Failed to regenerate message. Please check your connection settings.');
+        
+        // Re-render chat in case of partial changes
+        renderChatHistory();
+    } finally {
+        // Since we re-render the entire chat, the button state will be reset automatically
+        // No need to manually restore button state
     }
 }
 

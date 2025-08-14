@@ -103,6 +103,73 @@ export class ChatController {
   }
 
   /**
+   * Regenerate an AI message by index - works like deleting both messages and re-sending user message fresh
+   */
+  async regenerateMessage(messageIndex: number, userMessageOptions: SendMessageOptions): Promise<ChatMessage> {
+    const messages = this.sessionService.getChatMessagesForUI();
+    
+    if (messageIndex < 0 || messageIndex >= messages.length) {
+      throw new Error('Invalid message index');
+    }
+
+    const message = messages[messageIndex];
+    if (message.role !== 'assistant') {
+      throw new Error('Only AI messages can be regenerated');
+    }
+
+    // Find the user message that comes right before this AI message
+    let userMessageIndex = -1;
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        userMessageIndex = i;
+        break;
+      }
+    }
+
+    if (userMessageIndex === -1) {
+      throw new Error('Cannot regenerate: no user message found for context');
+    }
+
+    // Backup both messages for error recovery
+    const session = this.sessionService.getSession();
+    const originalUserMessage = session.creatorChatHistory.messages[userMessageIndex];
+    const originalAiMessage = session.creatorChatHistory.messages[messageIndex];
+
+    try {
+      // Delete both the user message and AI message from chat history
+      // Delete AI message first (higher index) to avoid index shifting
+      this.sessionService.deleteChatMessage(messageIndex);
+      this.sessionService.deleteChatMessage(userMessageIndex);
+
+      // Re-send the user message fresh using the normal flow
+      // This treats the image as "current" and positions it at the bottom with task description
+      const { userMessage, aiMessage } = await this.sendMessage(userMessageOptions);
+
+      // Return the regenerated AI message
+      return aiMessage;
+    } catch (error) {
+      // If regeneration fails, restore both original messages at their original positions
+      try {
+        // Restore messages by direct manipulation (sessionService methods handle saving)
+        const session = this.sessionService.getSession();
+        const userMessages = session.creatorChatHistory.messages;
+        
+        // Insert user message first (lower index)
+        userMessages.splice(userMessageIndex, 0, originalUserMessage);
+        
+        // Insert AI message at adjusted index (user message insertion shifts indices)
+        userMessages.splice(messageIndex, 0, originalAiMessage);
+        
+        // Trigger save via session update
+        this.sessionService.updateSession({});
+      } catch (restoreError) {
+        console.error('Failed to restore messages after regeneration error:', restoreError);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Clear all chat messages
    */
   async clearChat(): Promise<void> {
@@ -210,7 +277,10 @@ export class ChatController {
       maxResponseToken: settings.maxResponseToken,
       targetField: 'chat_response',
       outputFormat: settings.outputFormat,
-      // No need for additionalContentPartsForCurrentUserMessage since image is already in chat history
+      // Always append current image at the bottom to keep provider behavior consistent
+      additionalContentPartsForCurrentUserMessage: inlineImageUrl
+        ? [this.imageService.createImageContentPart(inlineImageUrl)]
+        : undefined,
     });
 
     return response || '';

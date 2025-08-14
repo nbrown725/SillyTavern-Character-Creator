@@ -51,15 +51,18 @@ Use this guide to understand how the extension is structured and how data/UI flo
   - **Services** - Core business logic
     - [src/services/sessionService.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/services/sessionService.ts)
       - Single source of truth for all extension data (singleton pattern)
-      - Manages localStorage persistence and session state
+      - Manages localStorage persistence and session state with advanced storage optimization
       - Methods: `getSession()`, `updateSession()`, `updateField()`, `updateDraftField()`, `addChatMessage()`, etc.
+      - Image persistence: `storeImageThumbnail()`, `getImageThumbnail()`, `getMessageForAIContext()`
+      - Smart storage management: strips large data URLs, uses compressed thumbnails, quota error recovery
     - [src/services/messageBuilder.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/services/messageBuilder.ts)
       - Centralizes all prompt/message construction logic
       - Used by both chat and field generation for consistent message building
       - Handles context assembly, template compilation, and message formatting
     - [src/services/imageService.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/services/imageService.ts)
-      - Unified image handling for chat and field generation
-      - Methods: `processImageFile()`, `createImageContentPart()`, `createMessageContentParts()`, `createImagePreviewHtml()`
+      - Unified image handling for chat and field generation with persistent storage
+      - Methods: `processImageFile()`, `createImageContentPart()`, `createThumbnail()`, `createImagePreviewHtml()`
+      - Manages image compression and thumbnail generation for efficient storage
   
   - **Utilities** - Common UI operations
     - [src/utils/uiHelpers.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/utils/uiHelpers.ts)
@@ -70,6 +73,8 @@ Use this guide to understand how the extension is structured and how data/UI flo
   - **Type Definitions**
     - [src/types.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/types.ts)
       - Central type definitions: `Session`, `CharacterField`, `CreatorChatMessage`, `ChatMessage`, `ContentPart`, etc.
+      - Enhanced `ContentPart` with `thumbnailUrl` and `originalSize` for image persistence
+      - `Session` includes `imageThumbnails` storage for compressed image data
       - Ensures type safety across all modules
 
 - **Generation Core (Simplified)**
@@ -121,9 +126,28 @@ Use this guide to understand how the extension is structured and how data/UI flo
   - Chat messages stored in unified `SessionService.creatorChatHistory`
   - Uses same `runCharacterFieldGeneration()` pipeline as field generation
 
+- **Image Persistence System** (Advanced Storage Management)
+  - **Two-Tier Storage Architecture**:
+    - **AI Context**: Full/thumbnail images stored in `CreatorChatMessage.content` for AI requests
+    - **UI Display**: Compressed thumbnails stored in `Session.imageThumbnails` for persistence
+    - **Storage Keys**: Generated as `img_${timestamp}_${random}` for unique identification
+  - **Smart Storage Flow**:
+    1. User uploads image → `ImageService.createThumbnail()` compresses to ~200x200px JPEG
+    2. `SessionService.storeImageThumbnail()` saves compressed version separately
+    3. Message content stores image reference (`thumbnailUrl`) instead of large data URL
+    4. `SessionService.sanitizeChatMessageForStorage()` strips large URLs before localStorage
+    5. `SessionService.getMessageForAIContext()` restores images when building AI requests
+  - **Quota Error Recovery**:
+    - Tier 1: Strip all image data URLs from messages
+    - Tier 2: Keep only last 20 messages
+    - Tier 3: Clear thumbnails older than 1 hour
+    - Tier 4: Clear all chat history as last resort
+  - **Browser Refresh Persistence**: Images remain in chat after browser restart via thumbnail restoration
+
 - **Parsers**
   - [src/parsers.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/parsers.ts)
     - `parseResponse()` normalizes code blocks, optionally concatenates with `previousContent` for continuation, and extracts based on selected format.
+    - Enhanced for plain text mode: returns full response content instead of restricting to code blocks
     - `getPrefilled()` returns an incomplete wrapper for `xml|json` to prompt model continuation.
 
 - **Key External Utilities (from sillytavern-utils-lib)**
@@ -133,8 +157,9 @@ Use this guide to understand how the extension is structured and how data/UI flo
 
 - **Data Models**
   - Character fields: `CHARACTER_FIELDS` and `CHARACTER_LABELS` in [src/generate.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/generate.ts).
-  - Session shape: `Session` in the same file (selected characters/worlds, fields, draft fields, last loaded id, creator chat history).
+  - Session shape: `Session` in [src/types.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/types.ts) (selected characters/worlds, fields, draft fields, last loaded id, creator chat history, image thumbnails).
   - Settings shape: `ExtensionSettings` in [src/settings.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/settings.ts).
+  - Image persistence: Full images stored in message content for AI context; compressed thumbnails stored separately for UI display and storage efficiency.
 
 - **Adding a New Core Field (How-To)**
   1. Update `CHARACTER_FIELDS` and `CHARACTER_LABELS` in [src/generate.ts](mdc:public/scripts/extensions/third-party/SillyTavern-Character-Creator-Chat/src/generate.ts).
@@ -185,7 +210,9 @@ Use this guide to understand how the extension is structured and how data/UI flo
   - **Single Source of Truth**: All session data managed by `SessionService` - no more dual storage issues
   - **Unified Message Pipeline**: Both chat and field generation use same `MessageBuilder` → `runCharacterFieldGeneration()` flow
   - **Clean Separation of Concerns**: UI only handles DOM; Controllers orchestrate; Services manage data/logic
-  - **Consistent Image Handling**: Single `ImageService` for all image operations
+  - **Advanced Image Persistence**: Smart storage system with thumbnail compression, quota error recovery, and persistent chat history
+  - **Storage Optimization**: Large image data URLs stripped from localStorage; compressed thumbnails stored separately; aggressive fallback pruning
+  - **Consistent Image Handling**: Single `ImageService` for all image operations with `createThumbnail()` for efficient storage
   - **No Code Duplication**: ~600+ lines of duplicate UI code eliminated via `UIHelpers`
   - **Type Safety**: Centralized types in `types.ts` ensure consistency across modules
   - **Maintainable**: Changes to business logic happen in one place (controllers/services)

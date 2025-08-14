@@ -1,6 +1,6 @@
- ---
- alwaysApply: true
- ---
+---
+alwaysApply: true
+---
  ### SillyTavern Extensions — Canonical Docs & Research
  
  Use this rule whenever developing or modifying this extension. Always consult the official SillyTavern docs first, then escalate to the DeepWiki MCP server for anything not covered.
