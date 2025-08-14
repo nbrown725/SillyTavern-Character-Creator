@@ -1381,6 +1381,76 @@ async function handlePopupUI() {
         }
       });
 
+      const loadCurrentCharacterButton = popupContainer.querySelector(
+        '#charCreator_loadCurrentCharacter',
+      ) as HTMLButtonElement;
+      loadCurrentCharacterButton.addEventListener('click', async () => {
+        try {
+          // Check if a character is currently selected
+          if (this_chid === undefined || this_chid === null || this_chid === '') {
+            st_echo('error', 'No character is currently selected in SillyTavern.');
+            return;
+          }
+
+          // Find the character in the characters array
+          const context = globalContext;
+          const characterIndex = parseInt(this_chid.toString());
+          const character = context.characters[characterIndex];
+          
+          if (!character) {
+            st_echo('error', 'Current character not found.');
+            return;
+          }
+
+          // Show confirmation
+          const confirm = await UIHelpers.showConfirmation(
+            'Load Current Character',
+            `Load data from "${character.name}"? This will replace any existing field content.`
+          );
+          if (!confirm) return;
+
+          const characterController = CharacterController.getInstance();
+          await characterController.loadCharacter(this_chid.toString());
+
+          // Update UI with loaded data
+          const updatedSession = sessionService.getSession();
+          
+          // Update core field textareas
+          CHARACTER_FIELDS.forEach((fieldName) => {
+            const elements = coreFieldElements[fieldName];
+            if (elements) {
+              const textarea = elements.textarea;
+              const promptTextarea = elements.promptTextarea;
+              const fieldData = updatedSession.fields[fieldName];
+
+              if (textarea && fieldData) {
+                textarea.value = fieldData.value || '';
+              }
+              if (promptTextarea && fieldData) {
+                promptTextarea.value = fieldData.prompt || '';
+              }
+            }
+          });
+
+          // Re-render the alternate greetings UI
+          const agFieldElement = coreFieldsContainer?.querySelector(
+            '.alternate-greetings-field',
+          ) as HTMLElement | null;
+          if (agFieldElement) {
+            renderAlternateGreetingsUI(agFieldElement);
+          }
+
+          // Update the load character dropdown to show the loaded character
+          if (loadCharDropdown) {
+            loadCharDropdown.setValues([this_chid.toString()]);
+          }
+
+          st_echo('success', `Successfully loaded character "${character.name}"`);
+        } catch (error: any) {
+          st_echo('error', `Failed to load current character: ${error.message}`);
+        }
+      });
+
       const saveAsNewCharacterButton = popupContainer.querySelector(
         '#charCreator_saveAsNewCharacter',
       ) as HTMLButtonElement;
