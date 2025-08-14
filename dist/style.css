@@ -23,7 +23,10 @@
   /* Styling for the Character/World Info selector containers */
   /* Style for the "X items selected" display */
   /* Max Context / Tokens */
+  /* Character Field Actions Wrapper */
+  /* Load Character Section */
   /* Character Field Actions Styling */
+  /* Load Current Character Button Styling */
   /* Output Format */
   /* Main Prompt Area */
   /* Character Field Styling */
@@ -167,28 +170,57 @@
   /* Initially hidden */
   margin-top: 10px;
 }
-#charCreatorPopup .character-field-actions {
+#charCreatorPopup .character-field-actions-wrapper {
   display: flex;
   gap: 15px;
-  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 15px;
+}
+@media (max-width: 992px) {
+  #charCreatorPopup .character-field-actions-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+}
+#charCreatorPopup .load-character-section {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
 }
 @media (max-width: 768px) {
-  #charCreatorPopup .character-field-actions {
+  #charCreatorPopup .load-character-section {
     flex-wrap: wrap;
   }
 }
+#charCreatorPopup .character-field-actions {
+  display: flex;
+  gap: 10px;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  flex-grow: 1;
+  justify-content: flex-end;
+}
+@media (max-width: 992px) {
+  #charCreatorPopup .character-field-actions {
+    justify-content: center;
+  }
+}
 #charCreatorPopup .character-field-actions button {
-  padding: 10px 20px;
+  padding: 8px 16px;
   background-color: var(--SmartThemeBlurTintColor);
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: 6px;
   color: var(--SmartThemeBodyColor);
-  font-size: 0.95em;
+  font-size: 0.9em;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
 }
 #charCreatorPopup .character-field-actions button:hover {
   transform: translateY(-1px);
@@ -199,6 +231,28 @@
 }
 #charCreatorPopup .character-field-actions button#charCreator_reset {
   border-color: var(--SmartThemeBorderColor);
+}
+#charCreatorPopup #charCreator_loadCurrentCharacter {
+  padding: 8px 16px;
+  background-color: var(--SmartThemeBlurTintColor);
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 6px;
+  color: var(--SmartThemeBodyColor);
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#charCreatorPopup #charCreator_loadCurrentCharacter:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px var(--SmartThemeShadowColor);
+}
+#charCreatorPopup #charCreator_loadCurrentCharacter i {
+  flex-shrink: 0;
 }
 #charCreatorPopup #charCreator_outputFormat {
   margin-top: 5px;

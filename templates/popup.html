@@ -145,21 +145,27 @@
         <!-- Right Column: Character Fields -->
         <div class="wide-column">
             <!-- Field Actions -->
-            <div class="character-field-actions">
-                <button id="charCreator_saveAsNewCharacter">
-                    <i class="fa-solid fa-floppy-disk" style="margin-right: 10px"></i>Save as New Character
-                </button>
-                <button id="charCreator_overrideCharacter">
-                    <i class="fa-solid fa-floppy-disk" style="margin-right: 10px"></i>Override Character
-                </button>
-                <div id="charCreator_saveAsWorldInfoSelector" style="display: flex" title="Save as WI Entry"></div>
-                <button id="charCreator_loadCurrentCharacter">
-                    <i class="fa-solid fa-download" style="margin-right: 10px"></i>Load Current Character
-                </button>
-                <button id="charCreator_reset">
-                    <i class="fa-solid fa-rotate-left" style="margin-right: 10px"></i>Reset Fields
-                </button>
-                <div id="charCreator_loadCharSelector" style="width: 200px" title="Load Character Data"></div>
+            <div class="character-field-actions-wrapper">
+                <!-- Load Character Section -->
+                <div class="load-character-section">
+                    <button id="charCreator_loadCurrentCharacter">
+                        <i class="fa-solid fa-download" style="margin-right: 8px"></i>Load Current
+                    </button>
+                    <div id="charCreator_loadCharSelector" style="min-width: 180px; max-width: 200px" title="Load Character Data"></div>
+                </div>
+                <!-- Action Buttons -->
+                <div class="character-field-actions">
+                    <button id="charCreator_saveAsNewCharacter">
+                        <i class="fa-solid fa-floppy-disk" style="margin-right: 8px"></i>Save New
+                    </button>
+                    <button id="charCreator_overrideCharacter">
+                        <i class="fa-solid fa-floppy-disk" style="margin-right: 8px"></i>Override
+                    </button>
+                    <div id="charCreator_saveAsWorldInfoSelector" style="display: flex" title="Save as WI Entry"></div>
+                    <button id="charCreator_reset">
+                        <i class="fa-solid fa-rotate-left" style="margin-right: 8px"></i>Reset
+                    </button>
+                </div>
             </div>
 
             <!-- Tab Buttons -->
