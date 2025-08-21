@@ -455,6 +455,11 @@ async function handlePopupUI() {
       const popupContainer = document.getElementById('charCreatorPopup');
       if (!popupContainer) return;
 
+      const popupCloseButton = document.querySelector('.popup-button-close') as HTMLElement;
+      if (!popupCloseButton) return;
+      popupCloseButton.style.right = '0px';
+      popupCloseButton.style.top = '5px';
+
       const settings = settingsManager.getSettings();
 
       // --- Setup Left Column ---
